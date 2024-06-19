@@ -1,3 +1,4 @@
+```html
 <!DOCTYPE html>
 <html lang="ja">
 <head>
@@ -58,7 +59,9 @@
         let mirrorPoints = [];
         let centerPoint = null;
         let unfoldCenterPoint = null;
+        let unfoldCenterPointClass = null;
         let combinedPoints = [];
+        let combinedPointsClass = [];
         let surfaceDisplay = false;
         let lineBreak = false;
 
@@ -67,6 +70,49 @@
                 this.x = x;
                 this.y = y;
                 this.z = z;
+            }
+        }
+
+        class UnfoldCenterPoint {
+            constructor(x, y, z) {
+                this.x = x;
+                this.y = y;
+                this.z = z;
+                this.distances = [];
+            }
+
+            calculateDistances(points) {
+                this.distances = points.map((point, index) => {
+                    const distance = Math.abs(Math.sqrt(
+                        (point.x - this.x) ** 2 +
+                        (point.y - this.y) ** 2 +
+                        (point.z - this.z) ** 2
+                    ));
+                    return { index, distance };
+                });
+            }
+        }
+
+        class CombinedPoints {
+            constructor(points) {
+                this.points = points;
+                this.distances = [];
+            }
+
+            calculateDistances() {
+                this.distances = this.points.map((point, index) => {
+                    if (index < this.points.length - 1) {
+                        const nextPoint = this.points[index + 1];
+                        const distance = Math.abs(Math.sqrt(
+                            (nextPoint.x - point.x) ** 2 +
+                            (nextPoint.y - point.y) ** 2 +
+                            (nextPoint.z - point.z) ** 2
+                        ));
+                        return { index, distance };
+                    } else {
+                        return { index, distance: 0 };
+                    }
+                });
             }
         }
 
@@ -116,7 +162,7 @@
                 }
             } else if (draggedPoint) {
                 draggedPoint.x = event.offsetX - centerX;
-                draggedPoint.y = event.offsetY - centerY;
+                draggedPoint.y = event.offsetY - centerX;
                 if (points.indexOf(draggedPoint) === 0) {
                     mirrorPoints[0].x = draggedPoint.x;
                     mirrorPoints[0].y = draggedPoint.y;
@@ -193,10 +239,15 @@
         });
 
         document.getElementById('unfoldButton').addEventListener('click', () => {
+            lineBreak = false;
             unfoldContext.clearRect(0, 0, unfoldCanvas.width, unfoldCanvas.height);
             combinedPoints = [...points, ...mirrorPoints.reverse()];
             combinedPoints = removeDuplicates(combinedPoints);
-            unfoldCenterPoint = centerPoint;
+            combinedPointsClass = new CombinedPoints(combinedPoints);
+            combinedPointsClass.calculateDistances();
+            unfoldCenterPoint = new Point(centerPoint.x, centerPoint.y, centerPoint.z);
+            unfoldCenterPointClass = new UnfoldCenterPoint(centerPoint.x, centerPoint.y, centerPoint.z);
+            unfoldCenterPointClass.calculateDistances(combinedPoints);
 
             // Draw points and lines
             drawUnfoldedPointsAndLines(combinedPoints, 'black');
@@ -227,21 +278,21 @@
             highlightPointsExceedingTolerance();
         });
 
-// 重複を取り除く関数
-function removeDuplicates(array) {
-    let uniqueArray = [];
-    let uniqueSet = new Set();
+        // 重複を取り除く関数
+        function removeDuplicates(array) {
+            let uniqueArray = [];
+            let uniqueSet = new Set();
 
-    for (let point of array) {
-        let key = JSON.stringify(point);
-        if (!uniqueSet.has(key)) {
-            uniqueSet.add(key);
-            uniqueArray.push(point);
+            for (let point of array) {
+                let key = JSON.stringify(point);
+                if (!uniqueSet.has(key)) {
+                    uniqueSet.add(key);
+                    uniqueArray.push(point);
+                }
+            }
+
+            return uniqueArray;
         }
-    }
-
-    return uniqueArray;
-}
 
         document.getElementById('unfoldButton2').addEventListener('click', () => {
             unfoldContext.clearRect(0, 0, unfoldCanvas.width, unfoldCanvas.height);
@@ -287,6 +338,52 @@ function removeDuplicates(array) {
         document.getElementById('unfoldRotateXNegativeButton').addEventListener('click', () => rotateUnfoldPointsX(-10));
         document.getElementById('unfoldRotateYPositiveButton').addEventListener('click', () => rotateUnfoldPointsY(10));
         document.getElementById('unfoldRotateYNegativeButton').addEventListener('click', () => rotateUnfoldPointsY(-10));
+
+        unfoldCanvas.addEventListener('mousedown', event => {
+            const clickedPoint = getClickedUnfoldPoint(event.offsetX, event.offsetY);
+            if (clickedPoint) {
+                //lineBreak = true;
+                const clickedIndex = combinedPoints.indexOf(clickedPoint);
+                combinedPoints = [
+                    ...combinedPoints.slice(clickedIndex),
+                    ...combinedPoints.slice(0, clickedIndex)
+                ];
+                combinedPoints.push(new Point(combinedPoints[0].x, combinedPoints[0].y, combinedPoints[0].z));
+                unfoldCenterPointClass.distances.length = 0;
+                unfoldCenterPointClass.calculateDistances(combinedPoints);
+                combinedPointsClass = new CombinedPoints(combinedPoints);
+                combinedPointsClass.calculateDistances();
+
+                // Move unfoldCenterPoint to (0, 0, 0)
+                unfoldCenterPoint.x = 0;
+                unfoldCenterPoint.y = 0;
+                unfoldCenterPoint.z = 0;
+
+                // Move combinedPoints[0] to the negative Y direction
+                combinedPoints[0].x = unfoldCenterPoint.x;
+                combinedPoints[0].y = unfoldCenterPoint.y - unfoldCenterPointClass.distances[0].distance ;
+                combinedPoints[0].z = unfoldCenterPoint.z;
+
+                // Move the rest of the points
+                for (let i = 1; i < combinedPoints.length; i++) {
+                    const prevPoint = combinedPoints[i - 1];
+                    const nextPoint = combinedPoints[i];
+                    const distanceToPrev = combinedPointsClass.distances[i-1].distance;
+                    const distanceToCenter = unfoldCenterPointClass.distances[i].distance;
+
+                    const angle = Math.acos(
+                        (distanceToPrev ** 2 + distanceToCenter ** 2 - combinedPointsClass.distances[i].distance ** 2) /
+                        (2 * distanceToPrev * distanceToCenter)
+                    );
+
+                    combinedPoints[i].x = prevPoint.x + distanceToPrev * Math.cos(angle);
+                    combinedPoints[i].y = prevPoint.y + distanceToPrev * Math.sin(angle);
+                    combinedPoints[i].z = prevPoint.z;
+                }
+
+                redrawUnfoldCanvas();
+            }
+        });
 
         function rotatePointsX(angleIncrement) {
             angleX = (angleX + angleIncrement) % 360;
@@ -366,6 +463,32 @@ function removeDuplicates(array) {
             }
             redrawUnfoldCanvas();
             document.getElementById('unfoldYRotationAngle').innerText = `Y回転角: ${unfoldAngleY}度`;
+        }
+
+        function getClickedUnfoldPoint(x, y) {
+            for (const point of combinedPoints) {
+                const dx = x - (point.x + unfoldCenterX);
+                const dy = y - (point.y + unfoldCenterY);
+                if (Math.sqrt(dx * dx + dy * dy) < 5) return point;
+            }
+            return null;
+        }
+
+        function redrawUnfoldCanvas() {
+            unfoldContext.clearRect(0, 0, unfoldCanvas.width, unfoldCanvas.height);
+
+            // Draw points and lines
+            drawUnfoldedPointsAndLines(combinedPoints, 'red');
+
+            // Draw center point
+            if (unfoldCenterPoint) {
+                drawUnfoldedPoint(unfoldCenterPoint, 'blue', 0, 0);
+            }
+
+            // Draw lines connecting to center point
+            combinedPoints.forEach(point => {
+                drawUnfoldedLine(point, unfoldCenterPoint, 'red', 0, 0);
+            });
         }
 
         function drawPoint(point, color = 'black') {
@@ -470,38 +593,6 @@ function removeDuplicates(array) {
             }
         }
 
-        function redrawUnfoldCanvas() {
-            unfoldContext.clearRect(0, 0, unfoldCanvas.width, unfoldCanvas.height);
-
-            // Draw points and lines
-            drawUnfoldedPointsAndLines(combinedPoints, 'black');
-
-            // Draw center point
-            if (unfoldCenterPoint) {
-                drawUnfoldedPoint(unfoldCenterPoint, 'blue', 0, 0);
-            }
-
-            // Draw lines connecting to center point
-            combinedPoints.forEach(point => {
-                drawUnfoldedLine(point, unfoldCenterPoint, 'gray', 0, 0);
-            });
-
-            // Draw triangles
-            combinedPoints.forEach(point => {
-                if(combinedPoints.indexOf(point) < combinedPoints.length-1) {
-                    fillUnfoldedTriangle(unfoldCenterPoint, point, combinedPoints[combinedPoints.indexOf(point)+1], 'rgba(211, 211, 211, 0.5)');
-                }
-                else {
-                    if(!lineBreak) {
-                      fillUnfoldedTriangle(unfoldCenterPoint, point, combinedPoints[0], 'rgba(211, 211, 211, 0.5)');
-                    }
-                }
-            });
-
-            // Highlight points exceeding tolerance angle
-            highlightPointsExceedingTolerance();
-        }
-
         function updateLineLength() {
             if (points.length > 1) {
                 const start = points[0];
@@ -564,10 +655,9 @@ function removeDuplicates(array) {
                 drawUnfoldedPoint(point, color, 0, 0);
                 if (index > 0) {
                     drawUnfoldedLine(points[index - 1], point, color, 0, 0);
-                }
-                else {
+                } else {
                     if(!lineBreak) {
-                      drawUnfoldedLine(points[points.length - 1], point, color, 0, 0);
+                        drawUnfoldedLine(points[points.length - 1], point, color, 0, 0);
                     }
                 }
             });
@@ -647,3 +737,4 @@ function removeDuplicates(array) {
     </script>
 </body>
 </html>
+```
