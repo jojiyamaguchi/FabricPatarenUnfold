@@ -1,3 +1,4 @@
+```html
 <!DOCTYPE html>
 <html lang="ja">
 <head>
@@ -57,7 +58,10 @@
         let lastPoint = null;
         let mirrorPoints = [];
         let centerPoint = null;
+        let unfoldCenterPoint = null;
+        let combinedPoints = [];
         let surfaceDisplay = false;
+        let lineBreak = false;
 
         class Point {
             constructor(x, y, z) {
@@ -114,11 +118,25 @@
             } else if (draggedPoint) {
                 draggedPoint.x = event.offsetX - centerX;
                 draggedPoint.y = event.offsetY - centerY;
+                if (points.indexOf(draggedPoint) === 0) {
+                    mirrorPoints[0].x = draggedPoint.x;
+                    mirrorPoints[0].y = draggedPoint.y;
+                } else if (points.indexOf(draggedPoint) === points.length - 1) {
+                    mirrorPoints[mirrorPoints.length - 1].x = draggedPoint.x;
+                    mirrorPoints[mirrorPoints.length - 1].y = draggedPoint.y;
+                }
                 redrawCanvas();
                 updateLineLength();
             } else if (draggedMirrorPoint) {
                 draggedMirrorPoint.x = event.offsetX - centerX;
-                draggedMirrorPoint.y = event.offsetY - centerY;
+                draggedMirrorPoint.y = event.offsetY - centerX;
+                if (mirrorPoints.indexOf(draggedMirrorPoint) === 0) {
+                    points[0].x = draggedMirrorPoint.x;
+                    points[0].y = draggedMirrorPoint.y;
+                } else if (mirrorPoints.indexOf(draggedMirrorPoint) === mirrorPoints.length - 1) {
+                    points[points.length - 1].x = draggedMirrorPoint.x;
+                    points[points.length - 1].y = draggedMirrorPoint.y;
+                }
                 redrawCanvas();
                 updateLineLength();
             } else if (draggedCenterPoint) {
@@ -177,28 +195,54 @@
 
         document.getElementById('unfoldButton').addEventListener('click', () => {
             unfoldContext.clearRect(0, 0, unfoldCanvas.width, unfoldCanvas.height);
-            const combinedPoints = [...points, ...mirrorPoints];
+            combinedPoints = [...points, ...mirrorPoints.reverse()];
+            combinedPoints = removeDuplicates(combinedPoints);
+            unfoldCenterPoint = centerPoint;
 
             // Draw points and lines
             drawUnfoldedPointsAndLines(combinedPoints, 'black');
 
             // Draw center point
-            if (centerPoint) {
-                drawUnfoldedPoint(centerPoint, 'blue', 0, 0);
+            if (unfoldCenterPoint) {
+                drawUnfoldedPoint(unfoldCenterPoint, 'blue', 0, 0);
             }
 
             // Draw lines connecting to center point
             combinedPoints.forEach(point => {
-                drawUnfoldedLine(point, centerPoint, 'gray', 0, 0);
+                drawUnfoldedLine(point, unfoldCenterPoint, 'gray', 0, 0);
             });
 
             // Draw triangles
             combinedPoints.forEach(point => {
                 if(combinedPoints.indexOf(point) < combinedPoints.length-1) {
-                    fillUnfoldedTriangle(centerPoint, point, combinedPoints[combinedPoints.indexOf(point)+1], 'rgba(211, 211, 211, 0.5)');
+                    fillUnfoldedTriangle(unfoldCenterPoint, point, combinedPoints[combinedPoints.indexOf(point)+1], 'rgba(211, 211, 211, 0.5)');
+                }
+                else {
+                    if(!lineBreak) {
+                      fillUnfoldedTriangle(unfoldCenterPoint, point, combinedPoints[0], 'rgba(211, 211, 211, 0.5)');
+                    }
                 }
             });
+
+            // Highlight points exceeding tolerance angle
+            highlightPointsExceedingTolerance();
         });
+
+// 重複を取り除く関数
+function removeDuplicates(array) {
+    let uniqueArray = [];
+    let uniqueSet = new Set();
+
+    for (let point of array) {
+        let key = JSON.stringify(point);
+        if (!uniqueSet.has(key)) {
+            uniqueSet.add(key);
+            uniqueArray.push(point);
+        }
+    }
+
+    return uniqueArray;
+}
 
         document.getElementById('unfoldButton2').addEventListener('click', () => {
             unfoldContext.clearRect(0, 0, unfoldCanvas.width, unfoldCanvas.height);
@@ -226,6 +270,9 @@
             pointsCopy.forEach(point => {
                 fillUnfoldedTriangle(centerPoint, point, mirrorPointsCopy[pointsCopy.indexOf(point)], 'rgba(211, 211, 211, 0.5)');
             });
+
+            // Highlight points exceeding tolerance angle
+            highlightPointsExceedingTolerance();
         });
 
         document.getElementById('mergeButton').addEventListener('click', () => {
@@ -291,20 +338,15 @@
         function rotateUnfoldPointsX(angleIncrement) {
             unfoldAngleX = (unfoldAngleX + angleIncrement) % 360;
             const angleXInRadians = angleIncrement * Math.PI / 180;
-            points = points.map(point => {
+            combinedPoints = combinedPoints.map(point => {
                 const y = point.y * Math.cos(angleXInRadians) - point.z * Math.sin(angleXInRadians);
                 const z = point.y * Math.sin(angleXInRadians) + point.z * Math.cos(angleXInRadians);
                 return new Point(point.x, y, z);
             });
-            mirrorPoints = mirrorPoints.map(point => {
-                const y = point.y * Math.cos(angleXInRadians) - point.z * Math.sin(angleXInRadians);
-                const z = point.y * Math.sin(angleXInRadians) + point.z * Math.cos(angleXInRadians);
-                return new Point(point.x, y, z);
-            });
-            if (centerPoint) {
-                const y = centerPoint.y * Math.cos(angleXInRadians) - centerPoint.z * Math.sin(angleXInRadians);
-                const z = centerPoint.y * Math.sin(angleXInRadians) + centerPoint.z * Math.cos(angleXInRadians);
-                centerPoint = new Point(centerPoint.x, y, z);
+            if (unfoldCenterPoint) {
+                const y = unfoldCenterPoint.y * Math.cos(angleXInRadians) - unfoldCenterPoint.z * Math.sin(angleXInRadians);
+                const z = unfoldCenterPoint.y * Math.sin(angleXInRadians) + unfoldCenterPoint.z * Math.cos(angleXInRadians);
+                unfoldCenterPoint = new Point(unfoldCenterPoint.x, y, z);
             }
             redrawUnfoldCanvas();
             document.getElementById('unfoldXRotationAngle').innerText = `X回転角: ${unfoldAngleX}度`;
@@ -313,20 +355,15 @@
         function rotateUnfoldPointsY(angleIncrement) {
             unfoldAngleY = (unfoldAngleY + angleIncrement) % 360;
             const angleYInRadians = angleIncrement * Math.PI / 180;
-            points = points.map(point => {
+            combinedPoints = combinedPoints.map(point => {
                 const x = point.x * Math.cos(angleYInRadians) - point.z * Math.sin(angleYInRadians);
                 const z = point.x * Math.sin(angleYInRadians) + point.z * Math.cos(angleYInRadians);
                 return new Point(x, point.y, z);
             });
-            mirrorPoints = mirrorPoints.map(point => {
-                const x = point.x * Math.cos(angleYInRadians) - point.z * Math.sin(angleYInRadians);
-                const z = point.x * Math.sin(angleYInRadians) + point.z * Math.cos(angleYInRadians);
-                return new Point(x, point.y, z);
-            });
-            if (centerPoint) {
-                const x = centerPoint.x * Math.cos(angleYInRadians) - centerPoint.z * Math.sin(angleYInRadians);
-                const z = centerPoint.x * Math.sin(angleYInRadians) + centerPoint.z * Math.cos(angleYInRadians);
-                centerPoint = new Point(x, centerPoint.y, z);
+            if (unfoldCenterPoint) {
+                const x = unfoldCenterPoint.x * Math.cos(angleYInRadians) - unfoldCenterPoint.z * Math.sin(angleYInRadians);
+                const z = unfoldCenterPoint.x * Math.sin(angleYInRadians) + unfoldCenterPoint.z * Math.cos(angleYInRadians);
+                unfoldCenterPoint = new Point(x, unfoldCenterPoint.y, z);
             }
             redrawUnfoldCanvas();
             document.getElementById('unfoldYRotationAngle').innerText = `Y回転角: ${unfoldAngleY}度`;
@@ -380,7 +417,7 @@
             for (let i = 0; i < points.length - 1; i++) {
                 const start = points[i];
                 const end = points[i + 1];
-                const distanceToLine =calculatePointToLineDistance(clickedX, clickedY, start, end);
+                const distanceToLine = calculatePointToLineDistance(clickedX, clickedY, start, end);
                 if (distanceToLine < 5) {
                     const t = ((clickedX - start.x) * (end.x - start.x) + (clickedY - start.y) * (end.y - start.y)) / ((end.x - start.x) ** 2 + (end.y - start.y) ** 2);
                     const newX = start.x + t * (end.x - start.x);
@@ -436,27 +473,34 @@
 
         function redrawUnfoldCanvas() {
             unfoldContext.clearRect(0, 0, unfoldCanvas.width, unfoldCanvas.height);
-            const combinedPoints = [...points, ...mirrorPoints];
 
             // Draw points and lines
             drawUnfoldedPointsAndLines(combinedPoints, 'black');
 
             // Draw center point
-            if (centerPoint) {
-                drawUnfoldedPoint(centerPoint, 'blue', 0, 0);
+            if (unfoldCenterPoint) {
+                drawUnfoldedPoint(unfoldCenterPoint, 'blue', 0, 0);
             }
 
             // Draw lines connecting to center point
             combinedPoints.forEach(point => {
-                drawUnfoldedLine(point, centerPoint, 'gray', 0, 0);
+                drawUnfoldedLine(point, unfoldCenterPoint, 'gray', 0, 0);
             });
 
             // Draw triangles
             combinedPoints.forEach(point => {
                 if(combinedPoints.indexOf(point) < combinedPoints.length-1) {
-                    fillUnfoldedTriangle(centerPoint, point, combinedPoints[combinedPoints.indexOf(point)+1], 'rgba(211, 211, 211, 0.5)');
+                    fillUnfoldedTriangle(unfoldCenterPoint, point, combinedPoints[combinedPoints.indexOf(point)+1], 'rgba(211, 211, 211, 0.5)');
+                }
+                else {
+                    if(!lineBreak) {
+                      fillUnfoldedTriangle(unfoldCenterPoint, point, combinedPoints[0], 'rgba(211, 211, 211, 0.5)');
+                    }
                 }
             });
+
+            // Highlight points exceeding tolerance angle
+            highlightPointsExceedingTolerance();
         }
 
         function updateLineLength() {
@@ -522,6 +566,11 @@
                 if (index > 0) {
                     drawUnfoldedLine(points[index - 1], point, color, 0, 0);
                 }
+                else {
+                    if(!lineBreak) {
+                      drawUnfoldedLine(points[points.length - 1], point, color, 0, 0);
+                    }
+                }
             });
         }
 
@@ -576,7 +625,27 @@
             angleContext.stroke();
         }
 
+        function highlightPointsExceedingTolerance() {
+            const toleranceAngle = parseFloat(document.getElementById('toleranceAngle').value);
+            combinedPoints.forEach(point => {
+                const angle = calculateAngleWithXPlane(point);
+                if (angle > toleranceAngle) {
+                    drawUnfoldedPoint(point, 'red', 0, 0);
+                }
+            });
+        }
+
+        function calculateAngleWithXPlane(point) {
+            if (!unfoldCenterPoint) return 0;
+            const dx = point.x - unfoldCenterPoint.x;
+            const dy = point.y - unfoldCenterPoint.y;
+            const dz = point.z - unfoldCenterPoint.z;
+            const distance = Math.sqrt(dx * dx + dy * dy + dz * dz);
+            return Math.acos(dx / distance) * (180 / Math.PI);
+        }
+
         drawAngleDiagram(30);
     </script>
 </body>
 </html>
+```
