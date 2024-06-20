@@ -366,7 +366,7 @@
         unfoldCanvas.addEventListener('mousedown', event => {
             const clickedPoint = getClickedUnfoldPoint(event.offsetX, event.offsetY);
             if (clickedPoint) {
-                //lineBreak = true;
+                lineBreak = true;
                 const clickedIndex = combinedPoints.indexOf(clickedPoint);
                 combinedPoints = [
                     ...combinedPoints.slice(clickedIndex),
@@ -498,16 +498,26 @@
             unfoldContext.clearRect(0, 0, unfoldCanvas.width, unfoldCanvas.height);
 
             // Draw points and lines
-            drawUnfoldedPointsAndLines(combinedPoints, 'red');
+            drawUnfoldedPointsAndLines(combinedPoints, 'black');
 
             // Draw center point
             if (unfoldCenterPoint) {
-                drawUnfoldedPoint(unfoldCenterPoint, 'blue', 0, 0);
+               drawUnfoldedPoint(unfoldCenterPoint, 'blue', 0, 0);
             }
 
             // Draw lines connecting to center point
             combinedPoints.forEach(point => {
-                drawUnfoldedLine(point, unfoldCenterPoint, 'red', 0, 0);
+                if(combinedPoints.indexOf(point) === 0 || combinedPoints.indexOf(point) === combinedPoints.length - 1) {
+                  if(!lineBreak) {          
+                    drawUnfoldedLine(point, unfoldCenterPoint, 'black', 0, 0);  
+                  }
+                  else {
+                    drawUnfoldedLine(point, unfoldCenterPoint, 'red', 0, 0);  
+                  }      
+                }
+                else {
+                  drawUnfoldedLine(point, unfoldCenterPoint, 'black', 0, 0);
+                }
             });
         }
 
