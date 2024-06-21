@@ -17,11 +17,8 @@
     <button id="resetButton">線を書き直す</button>
     <div id="lineLength">線の長さ: 0px</div>
     <button id="mirrorSymmetryResetButton">対称線リセット</button>
-    <button id="unfoldButton">展開図作成１</button>
-    <button id="unfoldButton2">展開図作成２</button>
-    <button id="mergeButton">結合</button>
+    <button id="unfoldButton">展開図作成</button>
     許容角度<input type="number" id="toleranceAngle" value="30">
-    <canvas id="angleCanvas" width="100" height="100"></canvas>
     <canvas id="unfoldCanvas" width="500" height="500"></canvas>
     <button id="unfoldRotateXPositiveButton">↓回転</button>
     <button id="unfoldRotateXNegativeButton">↑回転</button>
@@ -40,9 +37,6 @@
         const unfoldContext = unfoldCanvas.getContext('2d');
         const unfoldCenterX = unfoldCanvas.width / 2;
         const unfoldCenterY = unfoldCanvas.height / 2;
-
-        const angleCanvas = document.getElementById('angleCanvas');
-        const angleContext = angleCanvas.getContext('2d');
 
         let isDrawing = false;
         let points = [];
@@ -318,46 +312,6 @@
             return uniqueArray;
         }
 
-        document.getElementById('unfoldButton2').addEventListener('click', () => {
-            unfoldContext.clearRect(0, 0, unfoldCanvas.width, unfoldCanvas.height);
-            const pointsCopy = points.map(point => ({ ...point }));
-            const mirrorPointsCopy = mirrorPoints.map(point => ({ ...point }));
-
-            // Draw points and lines
-            drawUnfoldedPointsAndLines(pointsCopy, 'black');
-            drawUnfoldedPointsAndLines(mirrorPointsCopy, 'red');
-
-            // Draw center point
-            if (centerPoint) {
-                drawUnfoldedPoint(centerPoint, 'blue', 0, 0);
-            }
-
-            // Draw lines connecting to center point
-            pointsCopy.forEach(point => {
-                drawUnfoldedLine(point, centerPoint, 'gray', 0, 0);
-            });
-            mirrorPointsCopy.forEach(point => {
-                drawUnfoldedLine(point, centerPoint, 'gray', 0, 0);
-            });
-
-            // Draw triangles
-            pointsCopy.forEach(point => {
-                fillUnfoldedTriangle(centerPoint, point, mirrorPointsCopy[pointsCopy.indexOf(point)], 'rgba(211, 211, 211, 0.5)');
-            });
-
-            // Highlight points exceeding tolerance angle
-            highlightPointsExceedingTolerance();
-        });
-
-        document.getElementById('mergeButton').addEventListener('click', () => {
-            const toleranceAngle = parseFloat(document.getElementById('toleranceAngle').value);
-            mergeUnfoldDiagrams(toleranceAngle);
-        });
-
-        document.getElementById('toleranceAngle').addEventListener('input', () => {
-            drawAngleDiagram(parseFloat(document.getElementById('toleranceAngle').value));
-        });
-
         document.getElementById('unfoldRotateXPositiveButton').addEventListener('click', () => rotateUnfoldPointsX(10));
         document.getElementById('unfoldRotateXNegativeButton').addEventListener('click', () => rotateUnfoldPointsX(-10));
         document.getElementById('unfoldRotateYPositiveButton').addEventListener('click', () => rotateUnfoldPointsY(10));
@@ -452,7 +406,7 @@
         }
 
         function rotateUnfoldPointsX(angleIncrement) {
-            unfoldAngleX = (unfoldAngleX + angleIncrement) % 360;
+            unfoldAngleX = (unfoldAngleX + angleIncrement) %        360;
             const angleXInRadians = angleIncrement * Math.PI / 180;
             combinedPoints = combinedPoints.map(point => {
                 const y = point.y * Math.cos(angleXInRadians) - point.z * Math.sin(angleXInRadians);
@@ -722,28 +676,6 @@
             unfoldContext.fill();
         }
 
-        function drawAngleDiagram(angle) {
-            angleContext.clearRect(0, 0, angleCanvas.width, angleCanvas.height);
-            const centerX = angleCanvas.width / 2;
-            const centerY = angleCanvas.height / 2;
-            const radius = 40;
-
-            angleContext.beginPath();
-            angleContext.moveTo(centerX, centerY);
-            angleContext.lineTo(centerX + radius, centerY);
-            angleContext.stroke();
-
-            const radian = (angle * Math.PI) / 180;
-            angleContext.beginPath();
-            angleContext.moveTo(centerX, centerY);
-            angleContext.lineTo(centerX + radius * Math.cos(radian), centerY - radius * Math.sin(radian));
-            angleContext.stroke();
-
-            angleContext.beginPath();
-            angleContext.arc(centerX, centerY, radius, 0, -radian, true);
-            angleContext.stroke();
-        }
-
         function highlightPointsExceedingTolerance() {
             const toleranceAngle = parseFloat(document.getElementById('toleranceAngle').value);
             combinedPoints.forEach(point => {
@@ -762,8 +694,6 @@
             const distance = Math.sqrt(dx * dx + dy * dy + dz * dz);
             return Math.acos(dx / distance) * (180 / Math.PI);
         }
-
-        drawAngleDiagram(30);
     </script>
 </body>
 </html>
