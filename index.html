@@ -6,55 +6,32 @@
     <title>Canvas Drawing and Rotation</title>
     <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
     <style>
-        canvas {
-            border: 1px solid black;
-            width: 100%;
-            height: 80vh;
-        }
-        .canvas-box {
-            margin-bottom: 20px;
-        }
-        .button-group {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            margin-top: 10px;
-        }
-        .button-group button {
-            margin: 0 5px;
+        canvas 
+        { 
+          border: 1px solid black;
         }
     </style>
 </head>
 <body>
-    <div id="drawingCanvasBox" class="canvas-box">
-        <canvas id="drawingCanvas"></canvas>
-        <div class="button-group">
-            <button id="rotateXPositiveButton">↓回転</button>
-            <button id="rotateXNegativeButton">↑回転</button>
-            <div id="xRotationAngle">X回転角: 0度</div>
-            <button id="rotateYNegativeButton">←回転</button>
-            <button id="rotateYPositiveButton">→回転</button>
-            <div id="yRotationAngle">Y回転角: 0度</div>
-        </div>
-        <div class="button-group">
-            <button id="resetButton">線を書き直す</button>
-            <div id="lineLength">線の長さ: 0px</div>
-            <button id="mirrorSymmetryResetButton">対称線リセット</button>
-            <button id="unfoldButton">展開図作成</button>
-            許容角度<input type="number" id="toleranceAngle" value="30">
-        </div>
-    </div>
-    <div id="unfoldCanvasBox" class="canvas-box">
-        <canvas id="unfoldCanvas" width="500" height="500"></canvas>
-        <div class="button-group">
-            <button id="unfoldRotateXPositiveButton">↓回転</button>
-            <button id="unfoldRotateXNegativeButton">↑回転</button>
-            <div id="unfoldXRotationAngle">X回転角: 0度</div>
-            <button id="unfoldRotateYNegativeButton">←回転</button>
-            <button id="unfoldRotateYPositiveButton">→回転</button>
-            <div id="unfoldYRotationAngle">Y回転角: 0度</div>
-        </div>
-    </div>
+    <canvas id="drawingCanvas" width="500" height="500"></canvas>
+    <button id="rotateXPositiveButton">↓回転</button>
+    <button id="rotateXNegativeButton">↑回転</button>
+    <div id="xRotationAngle">X回転角: 0度</div>
+    <button id="rotateYNegativeButton">←回転</button>
+    <button id="rotateYPositiveButton">→回転</button>
+    <div id="yRotationAngle">Y回転角: 0度</div>
+    <button id="resetButton">線を書き直す</button>
+    <div id="lineLength">線の長さ: 0px</div>
+    <button id="mirrorSymmetryResetButton">対称線リセット</button>
+    <button id="unfoldButton">展開図作成</button>
+    許容角度<input type="number" id="toleranceAngle" value="30">
+    <canvas id="unfoldCanvas" width="500" height="500"></canvas>
+    <button id="unfoldRotateXPositiveButton">↓回転</button>
+    <button id="unfoldRotateXNegativeButton">↑回転</button>
+    <div id="unfoldXRotationAngle">X回転角: 0度</div>
+    <button id="unfoldRotateYNegativeButton">←回転</button>
+    <button id="unfoldRotateYPositiveButton">→回転</button>
+    <div id="unfoldYRotationAngle">Y回転角: 0度</div>
 
     <script>
         const drawingCanvas = document.getElementById('drawingCanvas');
@@ -425,7 +402,7 @@
                 return new Point(x, point.y, z);
             });
             if (centerPoint) {
-                               const x = centerPoint.x * Math.cos(angleYInRadians) - centerPoint.z * Math.sin(angleYInRadians);
+                const x = centerPoint.x * Math.cos(angleYInRadians) - centerPoint.z * Math.sin(angleYInRadians);
                 const z = centerPoint.x * Math.sin(angleYInRadians) + centerPoint.z * Math.cos(angleYInRadians);
                 centerPoint = new Point(x, centerPoint.y, z);
             }
@@ -435,7 +412,7 @@
         }
 
         function rotateUnfoldPointsX(angleIncrement) {
-            unfoldAngleX = (unfoldAngleX + angleIncrement) % 360;
+            unfoldAngleX = (unfoldAngleX + angleIncrement) %        360;
             const angleXInRadians = angleIncrement * Math.PI / 180;
             combinedPoints = combinedPoints.map(point => {
                 const y = point.y * Math.cos(angleXInRadians) - point.z * Math.sin(angleXInRadians);
