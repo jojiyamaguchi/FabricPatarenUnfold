@@ -76,7 +76,6 @@
 
         let isDrawing = false;
         let outlinePoints = [];
-        let innerLines = [];
         let angleX = 0;
         let angleY = 0;
         let currentLine = [];
@@ -90,7 +89,7 @@
         let pointCounter = 0;
 
         class Point {
-            constructor(x, y, z, isArc = false, selected = false, name = null, fusedPoints = null, connectedPoints = null) {
+            constructor(x, y, z, isArc = false, selected = false, name = null, connectedPoints = null) {
                 this.x = x;
                 this.y = y;
                 this.z = z;
@@ -102,23 +101,11 @@
                 else {
                   this.name = pointCounter++;
                 }
-                if(fusedPoints){
-                  this.fusedPoints =[...fusedPoints];
-                }
-                else {
-                  this.fusedPoints = [];
-                }
                 if(connectedPoints){
                   this.connectedPoints = [...connectedPoints];
                 }
                 else {
                   this.connectedPoints = [];
-                }
-            }
-
-            addFusedPoint(point) {
-                if (!this.fusedPoints.includes(point.name)) {
-                    this.fusedPoints.push(point.name);
                 }
             }
 
@@ -136,29 +123,10 @@
                 if(this.connectedPoints.includes(point.name)){
                     return true;
                 }
-                point.fusedPoints.forEach(name => {
-                    const fusedPoint = getPointByName(name);
-                    if(fusedPoint.connectedPoints.includes(this.name)){
-                        return true;
-                    }
-                });
                 return false;
             }
 
             updatePosition(x, y, z) {
-                this.x = x;
-                this.y = y;
-                this.z = z;
-                this.fusedPoints.forEach(name => {
-                    const fusedPoint = getPointByName(name);
-                    if (fusedPoint) {
-                        fusedPoint.x = x;
-                        fusedPoint.y = y;
-                        fusedPoint.z = z;
-                    }
-                });
-            }
-            updateMyPosition(x, y, z) {
                 this.x = x;
                 this.y = y;
                 this.z = z;
@@ -169,13 +137,6 @@
             for (const point of outlinePoints) {
                 if (point.name === name) {
                     return point;
-                }
-            }
-            for (const line of innerLines) {
-                for (const point of line) {
-                    if (point.name === name) {
-                        return point;
-                    }
                 }
             }
             return null;
@@ -240,7 +201,7 @@
                     lastPoint = startPoint;
                     lastDrawTime = Date.now();
                 } else {
-                    const clickedPoint = getClickedPoint(event.offsetX, event.offsetY) || getClickedInnerLinePoint(event.offsetX, event.offsetY);
+                    const clickedPoint = getClickedPoint(event.offsetX, event.offsetY);
                     if (clickedPoint) {
                         draggedPoint = clickedPoint;
                     } else {
@@ -249,25 +210,19 @@
                             outlinePoints.splice(newPointOnLine.index, 0, newPointOnLine.point);
                             redrawCanvas();
                         } else {
-                            const newPointOnInnerLine = getNewPointOnInnerLine(event.offsetX, event.offsetY);
-                            if (newPointOnInnerLine) {
-                                innerLines[newPointOnInnerLine.lineIndex].splice(newPointOnInnerLine.pointIndex, 0, newPointOnInnerLine.point);
-                                redrawCanvas();
-                            } else {
-                                if (!pathClosed) {
-                                    const newPoint = new Point(event.offsetX - centerX, event.offsetY - centerY, 0);
-                                    const closestEndPoint = getClosestEndPoint(newPoint);
-                                    if (closestEndPoint.index === 1) {
-                                        outlinePoints.unshift(newPoint);
-                                        insertAtStart = true;
-                                    } else {
-                                        outlinePoints.splice(closestEndPoint.index, 0, newPoint);
-                                        insertAtStart = false;
-                                    }
-                                    redrawCanvas();
-                                    isDrawing = true;
-                                    lastPoint = newPoint;
+                            if (!pathClosed) {
+                                const newPoint = new Point(event.offsetX - centerX, event.offsetY - centerY, 0);
+                                const closestEndPoint = getClosestEndPoint(newPoint);
+                                if (closestEndPoint.index === 1) {
+                                    outlinePoints.unshift(newPoint);
+                                    insertAtStart = true;
+                                } else {
+                                    outlinePoints.splice(closestEndPoint.index, 0, newPoint);
+                                    insertAtStart = false;
                                 }
+                                redrawCanvas();
+                                isDrawing = true;
+                                lastPoint = newPoint;
                             }
                         }
                     }
@@ -289,29 +244,21 @@
                 if (document.getElementById('deleteLineCheckBox').checked) {
                     const clickedLine = getClickedInnerLine(event.offsetX, event.offsetY);
                     if (clickedLine) {
-                        const [start, end] = innerLines[clickedLine.index];
+                        const [start, end] = clickedLine.line;
                         start.removeConnectedPoint(end);
                         end.removeConnectedPoint(start);
-                        innerLines.splice(clickedLine.index, 1);
                         redrawCanvas();
                     }
                 } else {
-                    const clickedPoint = getClickedPoint(event.offsetX, event.offsetY) || getClickedInnerLinePoint(event.offsetX, event.offsetY);
+                    const clickedPoint = getClickedPoint(event.offsetX, event.offsetY);
                     if (clickedPoint) {
                         clickedPoint.selected = true;
                         selectedPoints.push(clickedPoint);
                         if (selectedPoints.length === 2) {
-                            const innerLine = [new Point(selectedPoints[0].x, selectedPoints[0].y, selectedPoints[0].z), new Point(selectedPoints[1].x, selectedPoints[1].y, selectedPoints[1].z)];
-                            selectedPoints[0].addFusedPoint(innerLine[0]);
-                            selectedPoints[1].addFusedPoint(innerLine[1]);
-                            innerLine[0].addFusedPoint(selectedPoints[0]);
-                            innerLine[1].addFusedPoint(selectedPoints[1]);
-                            innerLine[0].addConnectedPoint(innerLine[1]);
-                            innerLine[1].addConnectedPoint(innerLine[0]);
-                            innerLines.push(innerLine);
+                            selectedPoints[0].addConnectedPoint(selectedPoints[1]);
+                            selectedPoints[1].addConnectedPoint(selectedPoints[0]);
                             selectedPoints.forEach(point => point.selected = false);
                             selectedPoints = [];
-                            checkAndHandleLineIntersections(innerLine);
                         }
                         redrawCanvas();
                     }
@@ -365,7 +312,6 @@
         document.getElementById('resetButton').addEventListener('click', () => {
             pointCounter = 0;
             outlinePoints = [];
-            innerLines = [];
             currentLine = [];
             angleX = 0;
             angleY = 0;
@@ -386,14 +332,7 @@
             for (const point of outlinePoints) {
                 const y = point.y * Math.cos(angleXInRadians) - point.z * Math.sin(angleXInRadians);
                 const z = point.y * Math.sin(angleXInRadians) + point.z * Math.cos(angleXInRadians);
-                point.updateMyPosition(point.x, y, z) ;
-            }
-            for (const line of innerLines) {
-                for (const point of line) {
-                    const y = point.y * Math.cos(angleXInRadians) - point.z * Math.sin(angleXInRadians);
-                    const z = point.y * Math.sin(angleXInRadians) + point.z * Math.cos(angleXInRadians);
-                    point.updateMyPosition(point.x, y, z); 
-                }
+                point.updatePosition(point.x, y, z);
             }
             redrawCanvas();
             document.getElementById('xRotationAngle').innerText = `X回転角: ${angleX}度`;
@@ -405,14 +344,7 @@
             for (const point of outlinePoints) {
                 const x = point.x * Math.cos(angleYInRadians) - point.z * Math.sin(angleYInRadians);
                 const z = point.x * Math.sin(angleYInRadians) + point.z * Math.cos(angleYInRadians);
-                point.updateMyPosition(x, point.y, z) ;
-            }
-            for (const line of innerLines) {
-                for (const point of line) {
-                    const x = point.x * Math.cos(angleYInRadians) - point.z * Math.sin(angleYInRadians);
-                    const z = point.x * Math.sin(angleYInRadians) + point.z * Math.cos(angleYInRadians);
-                    point.updateMyPosition(x, point.y, z); 
-                }
+                point.updatePosition(x, point.y, z);
             }
             redrawCanvas();
             document.getElementById('yRotationAngle').innerText = `Y回転角: ${angleY}度`;
@@ -435,7 +367,7 @@
         }
 
         function drawLine(start, end, color = 'black') {
-            if(start.connectedPoints.includes(end.name) && end.connectedPoints.includes(start.name) ){
+            if(start.isConnected(end) && end.isConnected(start)){
                 drawingContext.beginPath();
                 drawingContext.moveTo(start.x + centerX, start.y + centerY);
                 drawingContext.lineTo(end.x + centerX, end.y + centerY);
@@ -445,7 +377,7 @@
         }
 
         function getClickedPoint(x, y) {
-            for (const point            of outlinePoints) {
+            for (const point of outlinePoints) {
                 const dx = x - (point.x + centerX);
                 const dy = y - (point.y + centerY);
                 if (Math.sqrt(dx * dx + dy * dy) < 10) return point;
@@ -456,23 +388,14 @@
         function getClickedInnerLine(x, y) {
             const clickedX = x - centerX;
             const clickedY = y - centerY;
-            for (let i = 0; i < innerLines.length; i++) {
-                const start = innerLines[i][0];
-                const end = innerLines[i][1];
-                const distanceToLine = calculatePointToLineDistance(clickedX, clickedY, start, end);
-                if (distanceToLine < 5) {
-                    return { line: innerLines[i], index: i };
-                }
-            }
-            return null;
-        }
-
-        function getClickedInnerLinePoint(x, y) {
-            for (const line of innerLines) {
-                for (const point of line) {
-                    const dx = x - (point.x + centerX);
-                    const dy = y - (point.y + centerY);
-                    if (Math.sqrt(dx * dx + dy * dy) < 10) return point;
+            for (let i = 0; i < outlinePoints.length; i++) {
+                const start = outlinePoints[i];
+                for (let j = 0; j < start.connectedPoints.length; j++) {
+                    const end = getPointByName(start.connectedPoints[j]);
+                    const distanceToLine = calculatePointToLineDistance(clickedX, clickedY, start, end);
+                    if (distanceToLine < 5) {
+                        return { line: [start, end], index: i };
+                    }
                 }
             }
             return null;
@@ -490,23 +413,6 @@
                     const newX = start.x + t * (end.x - start.x);
                     const newY = start.y + t * (end.y - start.y);
                     return { point: new Point(newX, newY, 0), index: i + 1 };
-                }
-            }
-            return null;
-        }
-
-        function getNewPointOnInnerLine(x, y) {
-            const clickedX = x - centerX;
-            const clickedY = y - centerY;
-            for (let i = 0; i < innerLines.length; i++) {
-                const start = innerLines[i][0];
-                const end = innerLines[i][1];
-                const distanceToLine = calculatePointToLineDistance(clickedX, clickedY, start, end);
-                if (distanceToLine < 5) {
-                    const t = ((clickedX - start.x) * (end.x - start.x) + (clickedY - start.y) * (end.y - start.y)) / ((end.x - start.x) ** 2 + (end.y - start.y) ** 2);
-                    const newX = start.x + t * (end.x - start.x);
-                    const newY = start.y + t * (end.y - start.y);
-                    return { point: new Point(newX, newY, 0), lineIndex: i, pointIndex: 1 };
                 }
             }
             return null;
@@ -535,8 +441,7 @@
             let xx, yy;
             if (param < 0 || (start.x === end.x && start.y === end.y)) {
                 xx = start.x;
-                yy = start.y;
-            } else if (param > 1) {
+                yy = start.y            } else if (param > 1) {
                 xx = end.x;
                 yy = end.y;
             } else {
@@ -553,25 +458,12 @@
         }
 
         function redrawCanvas() {
-            // Check for fused points
-            for (let i = 0; i < outlinePoints.length; i++) {
-                for (let j = i + 1; j < outlinePoints.length; j++) {
-                    if (outlinePoints[i].x === outlinePoints[j].x && outlinePoints[i].y === outlinePoints[j].y && outlinePoints[i].z === outlinePoints[j].z) {
-                        if (!outlinePoints[i].fusedPoints.includes(outlinePoints[j].name)) {
-                            outlinePoints[i].addFusedPoint(outlinePoints[j]);
-                            outlinePoints[j].addFusedPoint(outlinePoints[i]);
-                        }
-                    }
-                }
-            }
-
             drawingContext.clearRect(0, 0, drawingCanvas.width, drawingCanvas.height);
             for (let i = 0; i < outlinePoints.length; i++) {
                 drawPoint(outlinePoints[i]);
-                if (i > 0) {
-                    drawLine(outlinePoints[i - 1], outlinePoints[i]);
-                    outlinePoints[i - 1].addConnectedPoint(outlinePoints[i]);
-                    outlinePoints[i].addConnectedPoint(outlinePoints[i - 1]);
+                for (let j = 0; j < outlinePoints[i].connectedPoints.length; j++) {
+                    const connectedPoint = getPointByName(outlinePoints[i].connectedPoints[j]);
+                    drawLine(outlinePoints[i], connectedPoint);
                 }
             }
             if (pathClosed && outlinePoints.length > 1) {
@@ -585,16 +477,6 @@
                     drawLine(arcPoints[0], arcPoints[1], 'blue');
                 }
             }
-            innerLines.forEach(line => {
-                line.forEach((point, index) => {
-                    drawPoint(point, 'gray');
-                    if (index > 0) {
-                        drawLine(line[index - 1], point, 'gray');
-                        line[index - 1].addConnectedPoint(point);
-                        point.addConnectedPoint(line[index - 1]);
-                    }
-                });
-            });
 
             if (document.getElementById('showFacesCheckbox').checked) {
                 drawFaces();
@@ -622,55 +504,15 @@
             redrawCanvas();
         }
 
-        function checkAndHandleLineIntersections(newLine) {
-            for (let i = 0; i < innerLines.length - 1; i++) {
-                const existingLine = innerLines[i];
-                if (doLinesIntersect(newLine[0], newLine[1], existingLine[0], existingLine[1])) {
-                    drawLine(newLine[0], newLine[1], 'red');
-                    document.getElementById('instructionText').innerText = '交差する線は作れません';
-                    document.getElementById('instructionText').style.color = 'red';
-                    setTimeout(() => {
-                        const [start, end] = innerLines.pop();
-                        start.removeConnectedPoint(end);
-                        end.removeConnectedPoint(start);
-                        redrawCanvas();
-                        document.getElementById('instructionText').innerText = '２つ点をえらんでください';
-                        document.getElementById('instructionText').style.color = 'black';
-                    }, 1000);
-                    return;
-                }
-            }
-        }
-
-        function doLinesIntersect(p1, p2, p3, p4) {
-            const d1 = direction(p3, p4, p1);
-            const d2 = direction(p3, p4, p2);
-            const d3 = direction(p1, p2, p3);
-            const d4 = direction(p1, p2, p4);
-            if (((d1 > 0 && d2 < 0) || (d1 < 0 && d2 > 0)) && ((d3 > 0 && d4 < 0) || (d3 < 0 && d4 > 0))) {
-                return true;
-            }
-            return false;
-        }
-
-        function direction(p1, p2, p3) {
-            return (p3.x - p1.x) * (p2.y - p1.y) - (p2.x - p1.x) * (p3.y - p1.y);
-        }
-
         function drawFaces() {
-            let allPoints = [...outlinePoints];
-            innerLines.forEach(line => {
-                allPoints.push(...line);
-            });
-
             const triangles = [];
 
-            for (let i = 0; i < allPoints.length; i++) {
-                for (let j = 0; j < allPoints.length; j++) {
-                    for (let k = 0; k < allPoints.length; k++) {
-                        const p1 = allPoints[i];
-                        const p2 = allPoints[j];
-                        const p3 = allPoints[k];
+            for (let i = 0; i < outlinePoints.length; i++) {
+                for (let j = 0; j < outlinePoints.length; j++) {
+                    for (let k = 0; k < outlinePoints.length; k++) {
+                        const p1 = outlinePoints[i];
+                        const p2 = outlinePoints[j];
+                        const p3 = outlinePoints[k];
 
                         if (p1.isConnected(p2) && p2.isConnected(p3) && p3.isConnected(p1)) {
                             const area = calculateTriangleArea(p1, p2, p3);
