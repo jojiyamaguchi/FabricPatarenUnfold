@@ -46,6 +46,10 @@
                     <label class="form-check-label" for="deleteLineCheckBox">線を消す</label>
                 </div>
                 <div class="form-check">
+                    <input type="checkbox" class="form-check-input" id="deletePointCheckBox">
+                    <label class="form-check-label" for="deletePointCheckBox">点を消す</label>
+                </div>
+                <div class="form-check">
                     <input type="checkbox" class="form-check-input" id="showFacesCheckbox">
                     <label class="form-check-label" for="showFacesCheckbox">面を表示</label>
                 </div>
@@ -207,7 +211,15 @@
                     } else {
                         const newPointOnLine = getNewPointOnLine(event.offsetX, event.offsetY);
                         if (newPointOnLine) {
+                            const prevPoint = outlinePoints[newPointOnLine.index - 1];
+                            const nextPoint = outlinePoints[newPointOnLine.index];
+                            prevPoint.removeConnectedPoint(nextPoint);
+                            nextPoint.removeConnectedPoint(prevPoint);
                             outlinePoints.splice(newPointOnLine.index, 0, newPointOnLine.point);
+                            prevPoint.addConnectedPoint(newPointOnLine.point);
+                            newPointOnLine.point.addConnectedPoint(prevPoint);
+                            nextPoint.addConnectedPoint(newPointOnLine.point);
+                            newPointOnLine.point.addConnectedPoint(nextPoint);
                             redrawCanvas();
                         } else {
                             if (!pathClosed) {
@@ -262,6 +274,15 @@
                         }
                         redrawCanvas();
                     }
+                }
+            }
+
+            if (document.getElementById('deletePointCheckBox').checked) {
+                const clickedPoint = getClickedPoint(event.offsetX, event.offsetY);
+                if (clickedPoint) {
+                    outlinePoints = outlinePoints.filter(point => point !== clickedPoint);
+                    outlinePoints.forEach(point => point.removeConnectedPoint(clickedPoint));
+                    redrawCanvas();
                 }
             }
         });
@@ -324,6 +345,7 @@
             selectedPoints = [];
             document.getElementById('closePathCheckbox').checked = false;
             document.getElementById('showFacesCheckbox').checked = false;
+            document.getElementById('deletePointCheckBox').checked = false;
         });
 
         function rotatePointsX(angleIncrement) {
@@ -404,15 +426,17 @@
         function getNewPointOnLine(x, y) {
             const clickedX = x - centerX;
             const clickedY = y - centerY;
-            for (let i = 0; i < outlinePoints.length - 1; i++) {
+            for (let i = 0; i < outlinePoints.length; i++) {
                 const start = outlinePoints[i];
-                const end = outlinePoints[i + 1];
-                const distanceToLine = calculatePointToLineDistance(clickedX, clickedY, start, end);
-                if (distanceToLine < 5) {
-                    const t = ((clickedX - start.x) * (end.x - start.x) + (clickedY - start.y) * (end.y - start.y)) / ((end.x - start.x) ** 2 + (end.y - start.y) ** 2);
-                    const newX = start.x + t * (end.x - start.x);
-                    const newY = start.y + t * (end.y - start.y);
-                    return { point: new Point(newX, newY, 0), index: i + 1 };
+                for (let j = 0; j < start.connectedPoints.length; j++) {
+                    const end = getPointByName(start.connectedPoints[j]);
+                    const distanceToLine = calculatePointToLineDistance(clickedX, clickedY, start, end);
+                    if (distanceToLine < 10) {
+                        const t = ((clickedX - start.x) * (end.x - start.x) + (clickedY - start.y) * (end.y - start.y)) / ((end.x - start.x) ** 2 + (end.y - start.y) ** 2);
+                        const newX = start.x + t * (end.x - start.x);
+                        const newY = start.y + t * (end.y - start.y);
+                        return { point: new Point(newX,newY, 0), index: i + 1 };
+                    }
                 }
             }
             return null;
@@ -441,7 +465,8 @@
             let xx, yy;
             if (param < 0 || (start.x === end.x && start.y === end.y)) {
                 xx = start.x;
-                yy = start.y            } else if (param > 1) {
+                yy = start.y;
+            } else if (param > 1) {
                 xx = end.x;
                 yy = end.y;
             } else {
