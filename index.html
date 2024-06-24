@@ -54,6 +54,7 @@
                     <label class="form-check-label" for="showFacesCheckbox">面を表示</label>
                 </div>
                 <button id="arcButton" class="btn btn-success mb-2 inactive-mode">Arc</button>
+                <button id="cutButton" class="btn btn-success mb-2 inactive-mode">カット</button>
             </div>
             <div class="col-md-9 position-relative">
                 <canvas id="drawingCanvas" width="500" height="500"></canvas>
@@ -67,7 +68,6 @@
                 <button id="rotateYPositiveButton" class="btn btn-primary mb-2">→回転</button>
                 <div id="yRotationAngle" class="mb-2">Y回転角: 0度</div>
                 <button id="resetButton" class="btn btn-danger mb-2">線を書き直す</button>
-                <div id="lineLength" class="mb-2">線の長さ: 0px</div>
             </div>
         </div>
     </div>
@@ -175,6 +175,11 @@
                     document.getElementById('instructionText').style.display = 'none';
                 }
                 redrawCanvas();
+            } else if (mode === 'cut') {
+                document.getElementById('cutButton').classList.add('active-mode');
+                document.getElementById('cutButton').classList.remove('inactive-mode');
+                document.getElementById('instructionText').style.display = 'none';
+                redrawCanvas();
             } else {
                 document.getElementById('instructionText').style.display = 'none';
                 redrawCanvas();
@@ -185,6 +190,7 @@
         document.getElementById('drawButton').addEventListener('click', () => setMajorMode('draw'));
         document.getElementById('arcButton').addEventListener('click', () => setMajorMode('arc'));
         document.getElementById('drawInnerLineButton').addEventListener('click', () => setMajorMode('drawInnerLine'));
+        document.getElementById('cutButton').addEventListener('click', () => setMajorMode('cut'));
 
         document.getElementById('closePathCheckbox').addEventListener('change', () => {
             pathClosed = document.getElementById('closePathCheckbox').checked;
@@ -339,7 +345,6 @@
             drawingContext.clearRect(0, 0, drawingCanvas.width, drawingCanvas.height);
             document.getElementById('xRotationAngle').innerText = `X回転角: 0度`;
             document.getElementById('yRotationAngle').innerText = `Y回転角: 0度`;
-            document.getElementById('lineLength').innerText = `線の長さ: 0px`;
             pathClosed = false;
             document.getElementById('instructionText').style.display = 'none';
             selectedPoints = [];
@@ -432,10 +437,10 @@
                     const end = getPointByName(start.connectedPoints[j]);
                     const distanceToLine = calculatePointToLineDistance(clickedX, clickedY, start, end);
                     if (distanceToLine < 10) {
-                        const t = ((clickedX - start.x) * (end.x - start.x) + (clickedY - start.y) * (end.y - start.y)) / ((end.x - start.x) ** 2 + (end.y - start.y) ** 2);
+                        const t = ((clickedX - start.x) * (end.x - start.x) + (clickedY - start.y) * (end.y - start.y)) / (((end.x - start.x) ** 2 + (end.y - start.y) ** 2));
                         const newX = start.x + t * (end.x - start.x);
                         const newY = start.y + t * (end.y - start.y);
-                        return { point: new Point(newX,newY, 0), index: i + 1 };
+                        return { point: new Point(newX, newY, 0), index: i + 1 };
                     }
                 }
             }
@@ -505,6 +510,10 @@
 
             if (document.getElementById('showFacesCheckbox').checked) {
                 drawFaces();
+            }
+
+            if (majorMode === 'cut') {
+                drawCutLines();
             }
         }
 
@@ -588,6 +597,66 @@
             drawingContext.closePath();
             drawingContext.fillStyle = 'rgba(128, 128, 128, 0.25)';
             drawingContext.fill();
+        }
+
+        function drawCutLines() {
+            const triangles = [];
+
+            for (let i = 0; i < outlinePoints.length; i++) {
+                for (let j = 0; j < outlinePoints.length; j++) {
+                    for (let k = 0; k < outlinePoints.length; k++) {
+                        const p1 = outlinePoints[i];
+                        const p2 = outlinePoints[j];
+                        const p3 = outlinePoints[k];
+
+                        if (p1.isConnected(p2) && p2.isConnected(p3) && p3.isConnected(p1)) {
+                            triangles.push([p1, p2, p3]);
+                        }
+                    }
+                }
+            }
+
+            for (let i = 0; i < triangles.length; i++) {
+                for (let j = i + 1; j < triangles.length; j++) {
+                    const sharedEdge = getSharedEdge(triangles[i], triangles[j]);
+                    if (sharedEdge) {
+                        const normal1 = calculateNormal(triangles[i]);
+                        const normal2 = calculateNormal(triangles[j]);
+                        if (!areNormalsParallel(normal1, normal2)) {
+                            drawLine(sharedEdge[0], sharedEdge[1], 'red');
+                        }
+                    }
+                }
+            }
+        }
+
+        function getSharedEdge(triangle1, triangle2) {
+            const sharedPoints = triangle1.filter(point => triangle2.includes(point));
+            if (sharedPoints.length === 2) {
+                return sharedPoints;
+            }
+            return null;
+        }
+
+        function calculateNormal(triangle) {
+            const [p1, p2, p3] = triangle;
+            const u = { x: p2.x - p1.x, y: p2.y - p1.y, z: p2.z - p1.z };
+            const v = { x: p3.x - p1.x, y: p3.y - p1.y, z: p3.z - p1.z };
+            return {
+                x: u.y * v.z - u.z * v.y,
+                y: u.z * v.x - u.x * v.z,
+                z: u.x * v.y - u.y * v.x
+            };
+        }
+
+        function areNormalsParallel(normal1, normal2) {
+            const crossProduct = {
+                x: normal1.y * normal2.z - normal1.z * normal2.y,
+                y: normal1.z * normal2.x - normal1.x * normal2.z,
+                z: normal1.x * normal2.y - normal1.y * normal2.x
+            };
+            const magnitude = Math.sqrt(crossProduct.x ** 2 + crossProduct.y ** 2 + crossProduct.z ** 2);
+            return magnitude < 1e-6;
         }
     </script>
 </body>
