@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device=1.0">
     <title>Canvas Drawing and Rotation</title>
     <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
     <style>
@@ -29,6 +29,13 @@
             border: 1px solid black;
             display: none;
         }
+        #unfoldingText {
+            position: absolute;
+            bottom: 10px;
+            right: 10px;
+            color: blue;
+            display: none;
+        }
     </style>
 </head>
 <body>
@@ -53,25 +60,22 @@
                     <input type="checkbox" class="form-check-input" id="showFacesCheckbox">
                     <label class="form-check-label" for="showFacesCheckbox">面を表示</label>
                 </div>
-                <button id="arcButton" class="btn btn-success mb-2 inactive-mode">Arc</button>
                 <button id="cutButton" class="btn btn-success mb-2 inactive-mode">カット</button>
-                <div class="form-check">
-                    <input type="checkbox" class="form-check-input" id="unfoldCheckbox">
-                    <label class="form-check-label" for="unfoldCheckbox">展開</label>
-                </div>
+                <button id="unfoldButton" class="btn btn-success mb-2 inactive-mode">展開</button>
             </div>
             <div class="col-md-9 position-relative">
                 <canvas id="drawingCanvas" width="500" height="500"></canvas>
                 <div id="instructionText">２つ点をえらんでください</div>
+                <div id="unfoldingText">展開処理中・・・</div>
             </div>
             <div class="col-md-1 d-flex flex-column align-items-start">
-                <button id="rotateXPositiveButton" class="btn btn-primary mb-2">↓</button>
-                <button id="rotateXNegativeButton" class="btn btn-primary mb-2">↑</button>
+                <button id="rotateXPositiveButton" class="btn-primary mb-2">↓</button>
+                <button id="rotateXNegativeButton" class="btn-primary mb-2">↑</button>
                 <div id="xRotationAngle" class="mb-2">X: 0度</div>
-                <button id="rotateYNegativeButton" class="btn btn-primary mb-2">←</button>
-                <button id="rotateYPositiveButton" class="btn btn-primary mb-2">→</button>
+                <button id="rotateYNegativeButton" class="btn-primary mb-2">←</button>
+                <button id="rotateYPositiveButton" class="btn-primary mb-2">→</button>
                 <div id="yRotationAngle" class="mb-2">Y: 0度</div>
-                <button id="resetButton" class="btn btn-danger mb-2">線を書き直す</button>
+                <button id="resetButton" class="btn-danger mb-2">線を書き直す</button>
             </div>
         </div>
     </div>
@@ -95,6 +99,7 @@
         let pathClosed = false;
         let selectedPoints = [];
         let pointCounter = 0;
+        let unFolded = false;
 
         class Point {
             constructor(x, y, z, isArc = false, selected = false, name = null, connectedPoints = null, isCutBetween = null) {
@@ -153,7 +158,14 @@
             }
 
             isCutWith(point) {
-                return this.isCutBetween.includes(point.name);
+                if(point) {
+                  return this.isCutBetween.includes(point.name);
+                }
+                return false;
+            }
+
+            clone() {
+                return new Point(this.x, this.y, this.z, this.isArc, this.selected, this.name, this.connectedPoints, this.isCutBetween);
             }
         }
 
@@ -179,11 +191,6 @@
                 document.getElementById('drawButton').classList.remove('inactive-mode');
                 document.getElementById('instructionText').style.display = 'none';
                 redrawCanvas();
-            } else if (mode === 'arc') {
-                document.getElementById('arcButton').classList.add('active-mode');
-                document.getElementById('arcButton').classList.remove('inactive-mode');
-                document.getElementById('instructionText').style.display = 'block';
-                redrawCanvas();
             } else if (mode === 'drawInnerLine') {
                 document.getElementById('drawInnerLineButton').classList.add('active-mode');
                 document.getElementById('drawInnerLineButton').classList.remove('inactive-mode');
@@ -200,6 +207,11 @@
                 document.getElementById('cutButton').classList.remove('inactive-mode');
                 document.getElementById('instructionText').style.display = 'none';
                 redrawCanvas();
+            } else if (mode === 'unfold') {
+                document.getElementById('unfoldButton').classList.add('active-mode');
+                document.getElementById('unfoldButton').classList.remove('inactive-mode');
+                document.getElementById('instructionText').style.display = 'none';
+                redrawCanvas();
             } else {
                 document.getElementById('instructionText').style.display = 'none';
                 redrawCanvas();
@@ -208,9 +220,9 @@
         }
 
         document.getElementById('drawButton').addEventListener('click', () => setMajorMode('draw'));
-        document.getElementById('arcButton').addEventListener('click', () => setMajorMode('arc'));
         document.getElementById('drawInnerLineButton').addEventListener('click', () => setMajorMode('drawInnerLine'));
         document.getElementById('cutButton').addEventListener('click', () => setMajorMode('cut'));
+        document.getElementById('unfoldButton').addEventListener('click', () => setMajorMode('unfold'));
 
         document.getElementById('closePathCheckbox').addEventListener('change', () => {
             pathClosed = document.getElementById('closePathCheckbox').checked;
@@ -265,19 +277,6 @@
                         }
                     }
                 }
-            } else if (majorMode === 'arc') {
-                const clickedPoint = getClickedPoint(event.offsetX, event.offsetY);
-                if (clickedPoint) {
-                    if (selectedPoints.length < 2) {
-                        selectedPoints.push(clickedPoint);
-                        clickedPoint.isArc = true;
-                    } else {
-                        selectedPoints.forEach(point => point.isArc = false);
-                        selectedPoints = [clickedPoint];
-                        clickedPoint.isArc = true;
-                    }
-                    redrawCanvas();
-                }
             } else if (majorMode === 'drawInnerLine') {
                 if (document.getElementById('deleteLineCheckBox').checked) {
                     const clickedLine = getClickedInnerLine(event.offsetX, event.offsetY);
@@ -302,6 +301,14 @@
                     }
                 }
             } else if (majorMode === 'cut') {
+                const clickedLine = getClickedInnerLine(event.offsetX, event.offsetY);
+                if (clickedLine) {
+                    const [start, end] = clickedLine.line;
+                    start.addCutBetween(end);
+                    end.addCutBetween(start);
+                    redrawCanvas();
+                }
+            } else if (majorMode === 'unfold') {
                 const clickedLine = getClickedInnerLine(event.offsetX, event.offsetY);
                 if (clickedLine) {
                     const [start, end] = clickedLine.line;
@@ -409,9 +416,7 @@
             const size = Math.max(1, (10 - point.z / 20) * 0.5);
             drawingContext.beginPath();
             drawingContext.arc(point.x + centerX, point.y + centerY, size, 0, 2 * Math.PI);
-            if (majorMode === 'arc') {
-                drawingContext.fillStyle = point.isArc ? 'blue' : color;
-            } else if (point.selected) {
+            if (point.selected) {
                 drawingContext.fillStyle = 'red';
             } else {
                 drawingContext.fillStyle = color;
@@ -426,8 +431,10 @@
                 drawingContext.beginPath();
                 drawingContext.moveTo(start.x + centerX, start.y + centerY);
                 drawingContext.lineTo(end.x + centerX, end.y + centerY);
-                if (majorMode === 'cut' && start.isCutWith(end) && end.isCutWith(start)) {
+                if ((majorMode === 'cut' || majorMode === 'unfold') && start.isCutWith(end) && end.isCutWith(start)) {
                     drawingContext.strokeStyle = 'blue';
+                } else if (majorMode === 'unfold' && !areNormalsParallel(calculateNormal([start, end, new Point(0, 0, 0)]), calculateNormal([end, start, new Point(0, 0, 0)]))) {
+                    drawingContext.strokeStyle = 'red';
                 } else {
                     drawingContext.strokeStyle = color;
                 }
@@ -439,7 +446,7 @@
             for (const point of outlinePoints) {
                 const dx = x - (point.x + centerX);
                 const dy = y - (point.y + centerY);
-                if (Math.sqrt(dx * dx + dy * dy) < 10) return point;
+                if                (Math.sqrt(dx * dx + dy * dy) < 10) return point;
             }
             return null;
         }
@@ -451,7 +458,7 @@
                 const start = outlinePoints[i];
                 for (let j = 0; j < start.connectedPoints.length; j++) {
                     const end = getPointByName(start.connectedPoints[j]);
-                    const distanceToLine = calculatePointToLineDistance(clickedX, clickedY, start,　end);
+                    const distanceToLine = calculatePointToLineDistance(clickedX, clickedY, start, end);
                     if (distanceToLine < 5) {
                         return { line: [start, end], index: i };
                     }
@@ -533,18 +540,12 @@
                 outlinePoints[outlinePoints.length - 1].addConnectedPoint(outlinePoints[0]);
                 outlinePoints[0].addConnectedPoint(outlinePoints[outlinePoints.length - 1]);
             }
-            if (majorMode === 'arc') {
-                let arcPoints = outlinePoints.filter(item => item.isArc);
-                if (arcPoints.length === 2) {
-                    drawLine(arcPoints[0], arcPoints[1], 'blue');
-                }
-            }
 
             if (document.getElementById('showFacesCheckbox').checked) {
                 drawFaces();
             }
 
-            if (majorMode === 'cut') {
+            if (majorMode === 'cut' || majorMode === 'unfold') {
                 drawCutLines();
             }
         }
@@ -663,7 +664,7 @@
         }
 
         function getSharedEdge(triangle1, triangle2) {
-            const sharedPoints = triangle1.filter(point => triangle2.includes(point));
+            const sharedPoints = triangle1.filter(point => triangle2.includes(point) && !point.isCutWith(triangle2.find(p => p !== point)));
             if (sharedPoints.length === 2) {
                 return sharedPoints;
             }
