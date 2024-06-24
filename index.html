@@ -61,12 +61,12 @@
                 <div id="instructionText">２つ点をえらんでください</div>
             </div>
             <div class="col-md-1 d-flex flex-column align-items-start">
-                <button id="rotateXPositiveButton" class="btn btn-primary mb-2">↓回転</button>
-                <button id="rotateXNegativeButton" class="btn btn-primary mb-2">↑回転</button>
-                <div id="xRotationAngle" class="mb-2">X回転角: 0度</div>
-                <button id="rotateYNegativeButton" class="btn btn-primary mb-2">←回転</button>
-                <button id="rotateYPositiveButton" class="btn btn-primary mb-2">→回転</button>
-                <div id="yRotationAngle" class="mb-2">Y回転角: 0度</div>
+                <button id="rotateXPositiveButton" class="btn btn-primary mb-2">↓</button>
+                <button id="rotateXNegativeButton" class="btn btn-primary mb-2">↑</button>
+                <div id="xRotationAngle" class="mb-2">X: 0度</div>
+                <button id="rotateYNegativeButton" class="btn btn-primary mb-2">←</button>
+                <button id="rotateYPositiveButton" class="btn btn-primary mb-2">→</button>
+                <div id="yRotationAngle" class="mb-2">Y: 0度</div>
                 <button id="resetButton" class="btn btn-danger mb-2">線を書き直す</button>
             </div>
         </div>
@@ -338,7 +338,7 @@
                         lastDrawTime = currentTime;
                     }
                 } else if (draggedPoint) {
-                    draggedPoint.updatePosition(event.offsetX - centerX, event.offsetY - centerY, 0);
+                    draggedPoint.updatePosition(event.offsetX - centerX, event.offsetY - centerY, draggedPoint.z);
                     redrawCanvas();
                 }
             }
