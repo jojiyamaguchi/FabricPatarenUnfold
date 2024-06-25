@@ -1,4 +1,3 @@
-```html
 <!DOCTYPE html>
 <html lang="ja">
 <head>
@@ -335,8 +334,7 @@
                         start.addCutBetween(end);
                         end.addCutBetween(start);
                         redrawCanvas();
-                    }
-                    else {
+                    } else {
                         const [start, end] = clickedLine.line;
                         const triangles = getTrianglesSharingEdge(start, end);
                         if (triangles.length > 0) {
@@ -723,13 +721,11 @@
         }
 
         function areNormalsParallel(normal1, normal2) {
-            const crossProduct = {
-                x: normal1.y * normal2.z - normal1.z * normal2.y,
-                y: normal1.z * normal2.x - normal1.x * normal2.z,
-                z: normal1.x * normal2.y - normal1.y * normal2.x
-            };
-            const magnitude = Math.sqrt(crossProduct.x ** 2 + crossProduct.y ** 2 + crossProduct.z ** 2);
-            return magnitude < 1e-6;
+            const dotProduct = normal1.x * normal2.x + normal1.y * normal2.y + normal1.z * normal2.z;
+            const magnitude1 = Math.sqrt(normal1.x ** 2 + normal1.y ** 2 + normal1.z ** 2);
+            const magnitude2 = Math.sqrt(normal2.x ** 2 + normal2.y ** 2 + normal2.z ** 2);
+            const cosTheta = dotProduct / (magnitude1 * magnitude2);
+            return Math.abs(cosTheta) > 0.999; // Treating both parallel and anti-parallel as parallel
         }
 
         function unfoldTriangles() {
@@ -867,6 +863,8 @@
 
             const rotationMatrix = getRotationMatrix(rotationAxis, angle);
 
+console.log("rotationMatrix = ", rotationMatrix);
+
             applyRotation(p1, rotationMatrix);
             applyRotation(p2, rotationMatrix);
             applyRotation(p3, rotationMatrix);
@@ -890,6 +888,7 @@
                         const unfoldedNormal = calculateNormal(unfoldedTriangle);
                         if (areNormalsParallel(normal, unfoldedNormal)) {
                             connectedTriangles.push(unfoldedTriangle);
+                            connectedTriangles.push(unfoldedTriangle);
                         }
                     }
                 }
@@ -899,7 +898,7 @@
 
         function getRotationMatrix(axis, angle) {
             const cos = Math.cos(angle);
-            const sin　= Math.sin(angle);
+            const sin = Math.sin(angle);
             const t = 1 - cos;
 
             return [
@@ -962,6 +961,9 @@
             const [triangle1, triangle2] = triangles;
             const normal1 = calculateNormal(triangle1);
             const normal2 = calculateNormal(triangle2);
+
+console.log("normal1 = ", normal1);
+console.log("normal2 = ", normal2);
 
             if (!areNormalsParallel(normal1, normal2)) {
                 const angle = 1 * Math.PI / 180; // 1 degree in radians
