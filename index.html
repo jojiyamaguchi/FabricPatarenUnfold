@@ -213,6 +213,7 @@
                 }
                 redrawCanvas();
             } else if (mode === 'cut') {
+                // 修正要望：unfoldCheckboxはmodeがcutの時以外は必ずOFFでdisabledにしてほしい。
                 document.getElementById('cutButton').classList.add('active-mode');
                 document.getElementById('cutButton').classList.remove('inactive-mode');
                 document.getElementById('instructionText').style.display = 'none';
@@ -238,7 +239,12 @@
         });
         document.getElementById('unfoldCheckbox').addEventListener('change', () => {
             if(document.getElementById('unfoldCheckbox').checked){
-                unfoldTriangles();
+                unfoldPoints = outlinePoints.map(point => new Point(point.x, point.y, point.z, point.isArc, point.selected, point.name, point.connectedPoints, point.isCutBetween));
+                
+                // 修正要望：unfoldCheckboxがCheckedの間はoutlinePointsではなくunfoldPointsを操作、描画するようにしてほしい
+                // 修正要望：isCutBetweenに名前を保持されているpointについて、座標位置とconnectedPointsを継承した複製を作ってほしい（nameは継承しない）
+                // 修正要望：その際に、isCutBetweenの辺を共有する二つの三角形をTriangleAとTriangleBとして、元のpoint(pointA)はTriangleAに、複製されたpoint(pointB)はTriangleBに属するものとする。
+                // 修正要望：pointAからはTriangleAの頂点以外とのconnectedPointsを探し、あれば互いに解除する。pointBからはTriangleBの頂点以外とのconnectedPointsを探し、あれば互いに解除する。
             } else {
                 unFolded = false;
                 redrawCanvas();
