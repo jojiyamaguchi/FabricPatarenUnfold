@@ -971,10 +971,24 @@ console.log(" triangles = ", triangles);
             drawCutLines();
         }
 
+const compareCoordinate = (a, b) => {
+  if (a.x !== b.x) {
+    return a.x - b.x;
+  } else if (a.y !== b.y) {
+    return a.y - b.y;
+  } else {
+    return a.z - b.z;
+  }
+};
+
         function areTrianglesEqual(triangle1, triangle2) {
             // 各三角形の頂点をソートして比較
-            const sorted1 = triangle1.slice().sort();
-            const sorted2 = triangle2.slice().sort();
+console.log("triangle1 = ", triangle1);
+console.log("triangle2 = ", triangle2);
+            const sorted1 = triangle1.slice().sort(compareCoordinate);
+            const sorted2 = triangle2.slice().sort(compareCoordinate);
+console.log("sorted1 = ", sorted1);
+console.log("sorted2 = ", sorted2);
             return sorted1[0] === sorted2[0] && sorted1[1] === sorted2[1] && sorted1[2] === sorted2[2];
         }
 
@@ -982,8 +996,8 @@ function getTrianglesSharingEdge(start, end) {
     const triangles = [];
 console.log("unfoldPoints = ", unfoldPoints);
     for (let i = 0; i < unfoldPoints.length; i++) {
-        for (let j = i + 1; j < unfoldPoints.length; j++) {
-            for (let k = j + 1; k < unfoldPoints.length; k++) {
+        for (let j = 0; j < unfoldPoints.length; j++) {
+            for (let k = 0; k < unfoldPoints.length; k++) {
                 const p1 = unfoldPoints[i];
                 const p2 = unfoldPoints[j];
                 const p3 = unfoldPoints[k];
