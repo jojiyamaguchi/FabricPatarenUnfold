@@ -747,7 +747,8 @@ console.log(" triangles = ", triangles);
             return null;
         }
 
-        function calculateNormal(triangle) {
+        function calculateNormal(triangle, normalSample = null) {
+            // 修正要望: when normalSample is not null, calculate normal for both sides of the face of the triangle, and return the one that's closer to normalSample.
             const [p1, p2, p3] = triangle;
             const u = { x: p2.x - p1.x, y: p2.y - p1.y, z: p2.z - p1.z };
             const v = { x: p3.x - p1.x, y: p3.y - p1.y, z: p3.z - p1.z };
@@ -849,7 +850,7 @@ console.log(" triangles = ", triangles);
 
             function step() {
                 let allNormalsAligned = true;
-
+console.log("step animating");
                 unfoldedTriangles.forEach(triangle => {
                     const [p1, p2, p3] = triangle;
                     const normal = calculateNormal(triangle);
@@ -1061,7 +1062,10 @@ console.log("normal2 = ", normal2);
                     applyRotation(cp3, rotationMatrix);
                 });
 
-                requestAnimationFrame(() => rotateTrianglesToAlignNormals(triangles, start, end));
+                redrawCanvas();
+                if(document.getElementById('unfoldCheckbox').checked) {
+                    requestAnimationFrame(() => rotateTrianglesToAlignNormals(triangles, start, end));
+                }
             } else {
                 redrawCanvas();
             }
