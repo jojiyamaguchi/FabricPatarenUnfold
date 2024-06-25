@@ -63,7 +63,7 @@
                 <button id="arcButton" class="btn btn-success mb-2 inactive-mode">Arc</button>
                 <button id="cutButton" class="btn btn-success mb-2 inactive-mode">カット</button>
                 <div class="form-check">
-                    <input type="checkbox" class="form-check-input" id="unfoldCheckbox">
+                    <input type="checkbox" class="form-check-input" id="unfoldCheckbox" disabled>
                     <label class="form-check-label" for="unfoldCheckbox">展開</label>
                 </div>
             </div>
@@ -113,7 +113,7 @@
                 this.z = z;
                 this.isArc = isArc;
                 this.selected = selected;
-                if(name){
+                if(name !== null){
                   this.name = name;
                 }
                 else {
@@ -195,11 +195,15 @@
                 document.getElementById('drawButton').classList.add('active-mode');
                 document.getElementById('drawButton').classList.remove('inactive-mode');
                 document.getElementById('instructionText').style.display = 'none';
+                document.getElementById('unfoldCheckbox').checked = false;
+                document.getElementById('unfoldCheckbox').disabled = true;
                 redrawCanvas();
             } else if (mode === 'arc') {
                 document.getElementById('arcButton').classList.add('active-mode');
                 document.getElementById('arcButton').classList.remove('inactive-mode');
                 document.getElementById('instructionText').style.display = 'block';
+                document.getElementById('unfoldCheckbox').checked = false;
+                document.getElementById('unfoldCheckbox').disabled = true;
                 redrawCanvas();
             } else if (mode === 'drawInnerLine') {
                 document.getElementById('drawInnerLineButton').classList.add('active-mode');
@@ -211,15 +215,19 @@
                 } else {
                     document.getElementById('instructionText').style.display = 'none';
                 }
+                document.getElementById('unfoldCheckbox').checked = false;
+                document.getElementById('unfoldCheckbox').disabled = true;
                 redrawCanvas();
             } else if (mode === 'cut') {
-                // 修正要望：unfoldCheckboxはmodeがcutの時以外は必ずOFFでdisabledにしてほしい。
                 document.getElementById('cutButton').classList.add('active-mode');
                 document.getElementById('cutButton').classList.remove('inactive-mode');
                 document.getElementById('instructionText').style.display = 'none';
+                document.getElementById('unfoldCheckbox').disabled = false;
                 redrawCanvas();
             } else {
                 document.getElementById('instructionText').style.display = 'none';
+                document.getElementById('unfoldCheckbox').checked = false;
+                document.getElementById('unfoldCheckbox').disabled = true;
                 redrawCanvas();
             }
             outlinePoints.forEach(point => point.selected = false);
@@ -240,11 +248,24 @@
         document.getElementById('unfoldCheckbox').addEventListener('change', () => {
             if(document.getElementById('unfoldCheckbox').checked){
                 unfoldPoints = outlinePoints.map(point => new Point(point.x, point.y, point.z, point.isArc, point.selected, point.name, point.connectedPoints, point.isCutBetween));
-                
-                // 修正要望：unfoldCheckboxがCheckedの間はoutlinePointsではなくunfoldPointsを操作、描画するようにしてほしい
-                // 修正要望：isCutBetweenに名前を保持されているpointについて、座標位置とconnectedPointsを継承した複製を作ってほしい（nameは継承しない）
-                // 修正要望：その際に、isCutBetweenの辺を共有する二つの三角形をTriangleAとTriangleBとして、元のpoint(pointA)はTriangleAに、複製されたpoint(pointB)はTriangleBに属するものとする。
-                // 修正要望：pointAからはTriangleAの頂点以外とのconnectedPointsを探し、あれば互いに解除する。pointBからはTriangleBの頂点以外とのconnectedPointsを探し、あれば互いに解除する。
+
+console.log("outlinePoints = ", outlinePoints);
+console.log("unfoldPoints = ", unfoldPoints);
+                unfoldPoints = unfoldPoints.flatMap(point => {
+                    if (point.isCutBetween.length > 0) {
+                        const newPoints = [];
+                        point.isCutBetween.forEach(cutPointName => {
+                            const cutPoint = getPointByName(cutPointName);
+                            const newPoint = new Point(point.x, point.y, point.z, point.isArc, point.selected, null, point.connectedPoints, point.isCutBetween);
+                            newPoint.connectedPoints = newPoint.connectedPoints.filter(name => name === cutPointName);
+                            newPoints.push(newPoint);
+                            point.connectedPoints = point.connectedPoints.filter(name => name !== cutPointName);
+                        });
+                        return [point, ...newPoints];
+                    }
+                    return [point];
+                });
+                redrawCanvas();
             } else {
                 unFolded = false;
                 redrawCanvas();
@@ -340,9 +361,15 @@
                         start.addCutBetween(end);
                         end.addCutBetween(start);
                         redrawCanvas();
+                        //修正要望: if the line is already cut, undo cut.
                     } else {
                         const [start, end] = clickedLine.line;
+console.log(" start = ", start);
+console.log(" end = ", end);
                         const triangles = getTrianglesSharingEdge(start, end);
+
+console.log(" triangles = ", triangles);
+
                         if (triangles.length > 0) {
                             rotateTrianglesToAlignNormals(triangles, start, end);
                             redrawCanvas();
@@ -419,6 +446,8 @@
             document.getElementById('closePathCheckbox').checked = false;
             document.getElementById('showFacesCheckbox').checked = false;
             document.getElementById('deletePointCheckBox').checked = false;
+            document.getElementById('unfoldCheckbox').checked = false;
+            document.getElementById('unfoldCheckbox').disabled = true;
         });
 
         function rotatePointsX(angleIncrement) {
@@ -430,7 +459,7 @@
                 point.updatePosition(point.x, y, z);
             }
             redrawCanvas();
-            document.getElementById('xRotationAngle').innerText = `X回転角: ${angleX}度`;
+            document.getElementById('xRotationAngle').innerText = `X: ${angleX}度`;
         }
 
         function rotatePointsY(angleIncrement) {
@@ -442,7 +471,7 @@
                 point.updatePosition(x, point.y, z);
             }
             redrawCanvas();
-            document.getElementById('yRotationAngle').innerText = `Y回転角: ${angleY}度`;
+            document.getElementById('yRotationAngle').innerText = `Y: ${angleY}度`;
         }
 
         function drawPoint(point, color = 'black') {
@@ -476,7 +505,8 @@
         }
 
         function getClickedPoint(x, y) {
-            for (const point of outlinePoints) {
+            const pointsToCheck = document.getElementById('unfoldCheckbox').checked ? unfoldPoints : outlinePoints;
+            for (const point of pointsToCheck) {
                 const dx = x - (point.x + centerX);
                 const dy = y - (point.y + centerY);
                 if (Math.sqrt(dx * dx + dy * dy) < 10) return point;
@@ -487,8 +517,9 @@
         function getClickedInnerLine(x, y) {
             const clickedX = x - centerX;
             const clickedY = y - centerY;
-            for (let i = 0; i < outlinePoints.length; i++) {
-                const start = outlinePoints[i];
+            const pointsToCheck = document.getElementById('unfoldCheckbox').checked ? unfoldPoints : outlinePoints;
+            for (let i = 0; i < pointsToCheck.length; i++) {
+                const start = pointsToCheck[i];
                 for (let j = 0; j < start.connectedPoints.length; j++) {
                     const end = getPointByName(start.connectedPoints[j]);
                     const distanceToLine = calculatePointToLineDistance(clickedX, clickedY, start, end);
@@ -503,8 +534,9 @@
         function getNewPointOnLine(x, y) {
             const clickedX = x - centerX;
             const clickedY = y - centerY;
-            for (let i = 0; i < outlinePoints.length; i++) {
-                const start = outlinePoints[i];
+            const pointsToCheck = document.getElementById('unfoldCheckbox').checked ? unfoldPoints : outlinePoints;
+            for (let i = 0; i < pointsToCheck.length; i++) {
+                const start = pointsToCheck[i];
                 for (let j = 0; j < start.connectedPoints.length; j++) {
                     const end = getPointByName(start.connectedPoints[j]);
                     const distanceToLine = calculatePointToLineDistance(clickedX, clickedY, start, end);
@@ -589,9 +621,9 @@
                 drawCutLines();
             }
 
-            if (document.getElementById('unfoldCheckbox').checked && majorMode === 'cut') {
-                unfoldTriangles();
-            }
+            //if (document.getElementById('unfoldCheckbox').checked && majorMode === 'cut') {
+            //    unfoldTriangles();
+            //}
         }
 
         function closePath() {
@@ -869,8 +901,6 @@
 
             const rotationMatrix = getRotationMatrix(rotationAxis, angle);
 
-console.log("rotationMatrix = ", rotationMatrix);
-
             applyRotation(p1, rotationMatrix);
             applyRotation(p2, rotationMatrix);
             applyRotation(p3, rotationMatrix);
@@ -893,7 +923,6 @@ console.log("rotationMatrix = ", rotationMatrix);
                         const normal = calculateNormal(triangle);
                         const unfoldedNormal = calculateNormal(unfoldedTriangle);
                         if (areNormalsParallel(normal, unfoldedNormal)) {
-                            connectedTriangles.push(unfoldedTriangle);
                             connectedTriangles.push(unfoldedTriangle);
                         }
                     }
@@ -949,41 +978,44 @@ console.log("rotationMatrix = ", rotationMatrix);
             return sorted1[0] === sorted2[0] && sorted1[1] === sorted2[1] && sorted1[2] === sorted2[2];
         }
 
-        
-        function getTrianglesSharingEdge(start, end) {
-            const triangles = [];
-            for (let i = 0; i < outlinePoints.length; i++) {
-                for (let j = 0; j < outlinePoints.length; j++) {
-                    for (let k = 0; k < outlinePoints.length; k++) {
-                        const p1 = outlinePoints[i];
-                        const p2 = outlinePoints[j];
-                        const p3 = outlinePoints[k];
+function getTrianglesSharingEdge(start, end) {
+    const triangles = [];
+console.log("unfoldPoints = ", unfoldPoints);
+    for (let i = 0; i < unfoldPoints.length; i++) {
+        for (let j = i + 1; j < unfoldPoints.length; j++) {
+            for (let k = j + 1; k < unfoldPoints.length; k++) {
+                const p1 = unfoldPoints[i];
+                const p2 = unfoldPoints[j];
+                const p3 = unfoldPoints[k];
 
-                        if (p1.isConnected(p2) && p2.isConnected(p3) && p3.isConnected(p1)) {
-                            if ((p1 === start && p2 === end) || (p2 === start && p3 === end) || (p3 === start && p1 === end) ||
-                                (p1 === end && p2 === start) || (p2 === end && p3 === start) || (p3 === end && p1 === start)) {
+                if (p1.isConnected(p2) && p2.isConnected(p3) && p3.isConnected(p1)) {
+                    console.log("p1 = ", p1);
+                    console.log("p2 = ", p2);
+                    console.log("p3 = ", p3);
+                    if ((p1.name === start.name && p2.name === end.name) || (p2.name === start.name && p3.name === end.name) || (p3.name === start.name && p1.name === end.name) ||
+                        (p1.name === end.name && p2.name === start.name) || (p2.name === end.name && p3.name === start.name) || (p3.name === end.name && p1.name === start.name)) {
 
-                                const newTriangle = [p1, p2, p3];
-                                let isDuplicate = false;
-
-                                // 重複チェック
-                                for (const existingTriangle of triangles) {
-                                    if (areTrianglesEqual(existingTriangle, newTriangle)) {
-                                        isDuplicate = true;
-                                        break;
-                                    }
-                                }
-        
-                                if (!isDuplicate) {
-                                    triangles.push(newTriangle);
-                                }
+                        const newTriangle = [p1, p2, p3];
+                        let isDuplicate = false;
+                        console.log("newTriangle = ", newTriangle);
+                        // 重複チェック
+                        for (const existingTriangle of triangles) {
+                            if (areTrianglesEqual(existingTriangle, newTriangle)) {
+                                isDuplicate = true;
+                                break;
                             }
+                        }
+
+                        if (!isDuplicate) {
+                            triangles.push(newTriangle);
                         }
                     }
                 }
             }
-            return triangles;
         }
+    }
+    return triangles;
+}
 
         function rotateTrianglesToAlignNormals(triangles, start, end) {
             const [triangle1, triangle2] = triangles;
