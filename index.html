@@ -1039,7 +1039,7 @@ console.log("unfoldPoints at getTrianglesSharingEdge", JSON.stringify(unfoldPoin
             return triangles;
         }
 
-        function rotateTrianglesToAlignNormals(triangles, start, end, normalParent) {
+       function rotateTrianglesToAlignNormals(triangles, start, end, normalParent) {
             const [triangle1, triangle2] = triangles;
 
 console.log("triangles = ", JSON.stringify(triangles));
@@ -1051,16 +1051,17 @@ console.log("normal1 = ", JSON.stringify(normal1));
 console.log("normal2 = ", JSON.stringify(normal2));
 
             if (!areNormalsParallel(normal1, normal2)) {
-                const angle = 0.00001 * Math.PI / 180; // 1 degree in radians
+                const angle = 0.0001 * Math.PI / 180; // 1 degree in radians
                 /*const rotationAxis = {
                     x: normal1.y * normal2.z - normal1.z * normal2.y,
                     y: normal1.z * normal2.x - normal1.x * normal2.z,
                     z: normal1.x * normal2.y - normal1.y * normal2.x
                 };*/
+
                 const rotationAxis = {
-                    x: start.y * end.z - start.z * end.y,
-                    y: start.z * end.x - start.x * end.z,
-                    z: start.x * end.y - start.y * end.x
+                    x: start.x  - end.x,
+                    y: start.y - end.y,
+                    z: start.z - end.z,
                 };
                 const rotationMatrix = getRotationMatrix(rotationAxis, angle);
 
