@@ -936,6 +936,14 @@ console.log("rotationMatrix = ", rotationMatrix);
             drawCutLines();
         }
 
+        function areTrianglesEqual(triangle1, triangle2) {
+            // 各三角形の頂点をソートして比較
+            const sorted1 = triangle1.slice().sort();
+            const sorted2 = triangle2.slice().sort();
+            return sorted1[0] === sorted2[0] && sorted1[1] === sorted2[1] && sorted1[2] === sorted2[2];
+        }
+
+        
         function getTrianglesSharingEdge(start, end) {
             const triangles = [];
             for (let i = 0; i < outlinePoints.length; i++) {
@@ -948,7 +956,21 @@ console.log("rotationMatrix = ", rotationMatrix);
                         if (p1.isConnected(p2) && p2.isConnected(p3) && p3.isConnected(p1)) {
                             if ((p1 === start && p2 === end) || (p2 === start && p3 === end) || (p3 === start && p1 === end) ||
                                 (p1 === end && p2 === start) || (p2 === end && p3 === start) || (p3 === end && p1 === start)) {
-                                triangles.push([p1, p2, p3]);
+
+                                const newTriangle = [p1, p2, p3];
+                                let isDuplicate = false;
+
+                                // 重複チェック
+                                for (const existingTriangle of triangles) {
+                                    if (areTrianglesEqual(existingTriangle, newTriangle)) {
+                                        isDuplicate = true;
+                                        break;
+                                    }
+                                }
+        
+                                if (!isDuplicate) {
+                                    triangles.push(newTriangle);
+                                }
                             }
                         }
                     }
