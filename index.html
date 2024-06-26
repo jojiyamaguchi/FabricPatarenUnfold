@@ -354,8 +354,6 @@
                         const [start, end] = clickedLine.line;
                         const triangles = getTrianglesSharingEdge(start, end);
 
-console.log(" triangles = ", JSON.stringify(triangles));
-
                         if (triangles.length > 0) {
                             
                             const normalStart = calculateNormal(triangles[0]);
@@ -1004,6 +1002,9 @@ console.log("normal2 = ", JSON.stringify(normal2));
                 applyRotation(triangle2[2], rotationMatrix);
 
                 const connectedPoints = getConnectedPoints(triangle2, triangle1);
+
+console.log(" connectedPoints = ", connectedPoints);
+console.log(" unfoldPoints = ", unfoldPoints);
 
                 if(connectedPoints.length + 3 >= unfoldPoints.length) {
                     document.getElementById('unfoldingText').style.display = 'none';
