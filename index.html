@@ -60,7 +60,6 @@
                     <input type="checkbox" class="form-check-input" id="showFacesCheckbox">
                     <label class="form-check-label" for="showFacesCheckbox">面を表示</label>
                 </div>
-                <button id="arcButton" class="btn btn-success mb-2 inactive-mode">Arc</button>
                 <button id="cutButton" class="btn btn-success mb-2 inactive-mode">カット</button>
                 <div class="form-check">
                     <input type="checkbox" class="form-check-input" id="unfoldCheckbox" disabled>
@@ -179,7 +178,8 @@
         }
 
         function getPointByName(name) {
-            for (const point of outlinePoints) {
+            const pointsToCheck = document.getElementById('unfoldCheckbox').checked ? unfoldPoints : outlinePoints;
+            for (const point of pointsToCheck) {
                 if (point.name === name) {
                     return point;
                 }
@@ -199,13 +199,6 @@
                 document.getElementById('drawButton').classList.add('active-mode');
                 document.getElementById('drawButton').classList.remove('inactive-mode');
                 document.getElementById('instructionText').style.display = 'none';
-                document.getElementById('unfoldCheckbox').checked = false;
-                document.getElementById('unfoldCheckbox').disabled = true;
-                redrawCanvas();
-            } else if (mode === 'arc') {
-                document.getElementById('arcButton').classList.add('active-mode');
-                document.getElementById('arcButton').classList.remove('inactive-mode');
-                document.getElementById('instructionText').style.display = 'block';
                 document.getElementById('unfoldCheckbox').checked = false;
                 document.getElementById('unfoldCheckbox').disabled = true;
                 redrawCanvas();
@@ -238,7 +231,6 @@
         }
 
         document.getElementById('drawButton').addEventListener('click', () => setMajorMode('draw'));
-        document.getElementById('arcButton').addEventListener('click', () => setMajorMode('arc'));
         document.getElementById('drawInnerLineButton').addEventListener('click', () => setMajorMode('drawInnerLine'));
         document.getElementById('cutButton').addEventListener('click', () => setMajorMode('cut'));
 
@@ -253,12 +245,9 @@
             if(document.getElementById('unfoldCheckbox').checked){
                 unfoldPoints.length = 0;
                 for(let i = 0; i < outlinePoints.length; i++) {
-                    console.log("new point = ", new Point(outlinePoints[i].x, outlinePoints[i].y, outlinePoints[i].z, outlinePoints[i].isArc, outlinePoints[i].selected, outlinePoints[i].name, outlinePoints[i].connectedPoints, outlinePoints[i].isCutBetween));
                     unfoldPoints.push( new Point(outlinePoints[i].x, outlinePoints[i].y, outlinePoints[i].z, outlinePoints[i].isArc, outlinePoints[i].selected, outlinePoints[i].name, outlinePoints[i].connectedPoints, outlinePoints[i].isCutBetween));
                 }
 
-console.log("outlinePoints = ", outlinePoints);
-console.log("unfoldPoints = ", JSON.stringify(unfoldPoints));
                 unfoldPoints = unfoldPoints.flatMap(point => {
                     if (point.isCutBetween.length > 0) {
                         const newPoints = [];
@@ -271,7 +260,6 @@ console.log("unfoldPoints = ", JSON.stringify(unfoldPoints));
                         });
                         return [point, ...newPoints];
                     }
-console.log("unfoldPoints after cut = ", JSON.stringify(unfoldPoints));
                     return [point];
                 });
                 redrawCanvas();
@@ -364,9 +352,6 @@ console.log("unfoldPoints after cut = ", JSON.stringify(unfoldPoints));
                         redrawCanvas();
                     } else {
                         const [start, end] = clickedLine.line;
-console.log(" start = ", start);
-console.log(" end = ", end);
-console.log("unfoldPoints before getTrianglesSharingEdge = ", JSON.stringify(unfoldPoints));
                         const triangles = getTrianglesSharingEdge(start, end);
 
 console.log(" triangles = ", JSON.stringify(triangles));
@@ -768,7 +753,7 @@ console.log(" triangles = ", JSON.stringify(triangles));
             if (normalSample) {
                 const dotProduct1 = normal1.x * normalSample.x + normal1.y * normalSample.y + normal1.z * normalSample.z;
                 const dotProduct2 = normal2.x * normalSample.x + normal2.y * normalSample.y + normal2.z * normalSample.z;
-                return dotProduct1 > dotProduct2 ? normal1 : normal2;
+                return dotProduct1 < dotProduct2 ? normal1 : normal2;
             }
 
             return normal1;
@@ -858,41 +843,6 @@ console.log(" triangles = ", JSON.stringify(triangles));
             return { x: newX, y: newY, z: newZ };
         }
 
-        function animateUnfolding(unfoldedTriangles) {
-            document.getElementById('unfoldingText').style.display = 'block';
-            let iteration = 0;
-            const maxIterations = 1000;
-
-            function step() {
-                let allNormalsAligned = true;
-console.log("step animating");
-                unfoldedTriangles.forEach(triangle => {
-                    const [p1, p2, p3] = triangle;
-                    const normal = calculateNormal(triangle);
-                    const parentTriangle = getParentTriangle(triangle, unfoldedTriangles);
-
-                    if (parentTriangle) {
-                        const parentNormal = calculateNormal(parentNormal, normal);
-
-                        if (!areNormalsParallel(normal, parentNormal)) {
-                            allNormalsAligned = false;
-                            rotateTriangleTowardsParent(triangle, parentNormal, unfoldedTriangles);
-                        }
-                    }
-                });
-
-                if (!allNormalsAligned && iteration < maxIterations) {
-                    iteration++;
-                    requestAnimationFrame(step);
-                } else {
-                    document.getElementById('unfoldingText').style.display = 'none';
-                    redrawUnfoldedTriangles(unfoldedTriangles);
-                }
-            }
-
-            step();
-        }
-
         function getParentTriangle(triangle, unfoldedTriangles) {
             for (const unfoldedTriangle of unfoldedTriangles) {
                 if (unfoldedTriangle !== triangle) {
@@ -905,47 +855,38 @@ console.log("step animating");
             return null;
         }
 
-        function rotateTriangleTowardsParent(triangle, parentNormal, unfoldedTriangles) {
-            const [p1, p2, p3] = triangle;
-            const normal = calculateNormal(triangle);
-            const angle = 1 * Math.PI / 180; // 1 degree in radians
 
-            const rotationAxis = {
-                x: normal.y * parentNormal.z - normal.z * parentNormal.y,
-                y: normal.z * parentNormal.x - normal.x * parentNormal.z,
-                z: normal.x * parentNormal.y - normal.y * parentNormal.x
-            };
+        function getConnectedPoints(triangle, omittTriangle) {
+            const outputPoints = [];
 
-            const rotationMatrix = getRotationMatrix(rotationAxis, angle);
-
-            applyRotation(p1, rotationMatrix);
-            applyRotation(p2, rotationMatrix);
-            applyRotation(p3, rotationMatrix);
-
-            const connectedTriangles = getConnectedTriangles(triangle, unfoldedTriangles);
-            connectedTriangles.forEach(connectedTriangle => {
-                const [cp1, cp2, cp3] = connectedTriangle;
-                applyRotation(cp1, rotationMatrix);
-                applyRotation(cp2, rotationMatrix);
-                applyRotation(cp3, rotationMatrix);
-            });
-        }
-
-        function getConnectedTriangles(triangle, unfoldedTriangles) {
-            const connectedTriangles = [];
-            unfoldedTriangles.forEach(unfoldedTriangle => {
-                if (unfoldedTriangle !== triangle) {
-                    const sharedEdge = getSharedEdge(triangle, unfoldedTriangle);
-                    if (sharedEdge) {
-                        const normal = calculateNormal(triangle);
-                        const unfoldedNormal = calculateNormal(unfoldedTriangle,normal);
-                        if (areNormalsParallel(normal, unfoldedNormal)) {
-                            connectedTriangles.push(unfoldedTriangle);
-                        }
+            triangle.forEach(triPoint => {
+                const [op1, op2, op3] = omittTriangle;
+                if(triPoint.name != op1.name && triPoint.name != op2.name && triPoint.name != op3.name) {
+                    if (triPoint.connectedPoints.length > 0) {
+                       triPoint.connectedPoints.forEach(name => {
+                            const point = getPointByName(name);
+                            if(point.name != op1.name && point.name != op2.name && point.name != op3.name) {
+                                if(!outputPoints.includes(point)){
+                                    outputPoints.push(point);
+                                    getConnectedPointsBeyond(point, outputPoints);
+                                }
+                            }
+                       });
                     }
                 }
             });
-            return connectedTriangles;
+            
+            return outputPoints;
+        }
+
+        function getConnectedPointsBeyond(InPoint, outputPoints) {
+             InPoint.connectedPoints.forEach(name => {
+                 const point = getPointByName(name);
+                 if(!outputPoints.includes(point)){
+                     outputPoints.push(point);
+                     getConnectedPointsBeyond(point, outputPoints);
+                 }
+             });
         }
 
         function getRotationMatrix(axis, angle) {
@@ -1006,7 +947,6 @@ console.log("step animating");
 
         function getTrianglesSharingEdge(start, end) {
             const triangles = [];
-console.log("unfoldPoints at getTrianglesSharingEdge", JSON.stringify(unfoldPoints));
 
             for (let i = 0; i < unfoldPoints.length; i++) {
                 for (let j = 0; j < unfoldPoints.length; j++) {
@@ -1042,7 +982,6 @@ console.log("unfoldPoints at getTrianglesSharingEdge", JSON.stringify(unfoldPoin
        function rotateTrianglesToAlignNormals(triangles, start, end, normalParent) {
             const [triangle1, triangle2] = triangles;
 
-console.log("triangles = ", JSON.stringify(triangles));
 
             const normal1 = calculateNormal(triangle1, normalParent);
             const normal2 = calculateNormal(triangle2, normal1);
@@ -1052,11 +991,6 @@ console.log("normal2 = ", JSON.stringify(normal2));
 
             if (!areNormalsParallel(normal1, normal2)) {
                 const angle = 0.0001 * Math.PI / 180; // 1 degree in radians
-                /*const rotationAxis = {
-                    x: normal1.y * normal2.z - normal1.z * normal2.y,
-                    y: normal1.z * normal2.x - normal1.x * normal2.z,
-                    z: normal1.x * normal2.y - normal1.y * normal2.x
-                };*/
 
                 const rotationAxis = {
                     x: start.x  - end.x,
@@ -1069,12 +1003,16 @@ console.log("normal2 = ", JSON.stringify(normal2));
                 applyRotation(triangle2[1], rotationMatrix);
                 applyRotation(triangle2[2], rotationMatrix);
 
-                const connectedTriangles = getConnectedTriangles(triangle2, triangles);
-                connectedTriangles.forEach(connectedTriangle => {
-                    const [cp1, cp2, cp3] = connectedTriangle;
-                    applyRotation(cp1, rotationMatrix);
-                    applyRotation(cp2, rotationMatrix);
-                    applyRotation(cp3, rotationMatrix);
+                const connectedPoints = getConnectedPoints(triangle2, triangle1);
+
+                if(connectedPoints.length + 3 >= unfoldPoints.length) {
+                    document.getElementById('unfoldingText').style.display = 'none';
+                    redrawCanvas();
+                    return;
+                }
+
+                connectedPoints.forEach(point => {
+                    applyRotation(point, rotationMatrix);
                 });
 
                 redrawCanvas();
