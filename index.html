@@ -856,10 +856,16 @@
 
         function getConnectedPoints(triangle, omittTriangle) {
             const outputPoints = [];
+            const [op1, op2, op3] = omittTriangle;
+
+console.log("op1 = ", op1);
+console.log("op2 = ", op2);
+console.log("op3 = ", op3);
 
             triangle.forEach(triPoint => {
-                const [op1, op2, op3] = omittTriangle;
+                outputPoints.push(triPoint);
                 if(triPoint.name != op1.name && triPoint.name != op2.name && triPoint.name != op3.name) {
+                    
                     if (triPoint.connectedPoints.length > 0) {
                        triPoint.connectedPoints.forEach(name => {
                             const point = getPointByName(name);
@@ -977,7 +983,7 @@
             return triangles;
         }
 
-       function rotateTrianglesToAlignNormals(triangles, start, end, prevRotationAxis = null) {
+       function rotateTrianglesToAlignNormals(triangles, start, end) {
             const [triangle1, triangle2] = triangles;
 
             // to allow X Y rotation during unfolding, the X Y Z coordinatets of the triangles are updated
@@ -1005,8 +1011,8 @@
             const normal1 = calculateNormal(triangle1);
             const normal2 = calculateNormal(triangle2, normal1);
 
-console.log("normal1 = ", JSON.stringify(normal1));
-console.log("normal2 = ", JSON.stringify(normal2));
+//console.log("normal1 = ", JSON.stringify(normal1));
+//console.log("normal2 = ", JSON.stringify(normal2));
 
             if (!areNormalsParallel(normal1, normal2)) {
 
@@ -1014,36 +1020,26 @@ console.log("normal2 = ", JSON.stringify(normal2));
 
                 let rotationAxis = null;
 
-                if(prevRotationAxis) {
-                    rotationAxis = prevRotationAxis;
-                    rotationAxis = {
-                        x: start.x  - end.x,
-                        y: start.y - end.y,
-                        z: start.z - end.z,
-                    };
-                }
-                else {
-                    rotationAxis = {
-                        x: start.x  - end.x,
-                        y: start.y - end.y,
-                        z: start.z - end.z,
-                    };
-                }
+                rotationAxis = {
+                    x: start.x  - end.x,
+                    y: start.y - end.y,
+                    z: start.z - end.z,
+                };
 
                 const rotationMatrix = getRotationMatrix(rotationAxis, angle);
 
-                applyRotation(triangle2[0], rotationMatrix);
+                //applyRotation(triangle2[0], rotationMatrix);
 
-                applyRotation(triangle2[1], rotationMatrix);
+                //applyRotation(triangle2[1], rotationMatrix);
 
-                applyRotation(triangle2[2], rotationMatrix);
+                //applyRotation(triangle2[2], rotationMatrix);
 
                 const connectedPoints = getConnectedPoints(triangle2, triangle1);
 
 console.log(" connectedPoints = ", connectedPoints);
 console.log(" unfoldPoints = ", unfoldPoints);
 
-                if(connectedPoints.length + 3 >= unfoldPoints.length) {
+                if(connectedPoints.length >= unfoldPoints.length) {
                     document.getElementById('unfoldingText').style.display = 'none';
                     redrawCanvas();
                     return;
@@ -1056,7 +1052,7 @@ console.log(" unfoldPoints = ", unfoldPoints);
                 redrawCanvas();
                 if(document.getElementById('unfoldCheckbox').checked) {
                     document.getElementById('unfoldingText').style.display = 'block';
-                    requestAnimationFrame(() => rotateTrianglesToAlignNormals(triangles, start, end, rotationAxis, ));
+                    requestAnimationFrame(() => rotateTrianglesToAlignNormals(triangles, start, end));
                 }
                 else {
                     document.getElementById('unfoldingText').style.display = 'none';
