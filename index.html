@@ -858,14 +858,10 @@
             const outputPoints = [];
             const [op1, op2, op3] = omittTriangle;
 
-console.log("op1 = ", op1);
-console.log("op2 = ", op2);
-console.log("op3 = ", op3);
-
             triangle.forEach(triPoint => {
-                outputPoints.push(triPoint);
                 if(triPoint.name != op1.name && triPoint.name != op2.name && triPoint.name != op3.name) {
                     
+                outputPoints.push(triPoint);
                     if (triPoint.connectedPoints.length > 0) {
                        triPoint.connectedPoints.forEach(name => {
                             const point = getPointByName(name);
@@ -1036,8 +1032,8 @@ console.log("op3 = ", op3);
 
                 const connectedPoints = getConnectedPoints(triangle2, triangle1);
 
-console.log(" connectedPoints = ", connectedPoints);
-console.log(" unfoldPoints = ", unfoldPoints);
+//console.log(" connectedPoints = ", connectedPoints);
+//console.log(" unfoldPoints = ", unfoldPoints);
 
                 if(connectedPoints.length >= unfoldPoints.length) {
                     document.getElementById('unfoldingText').style.display = 'none';
